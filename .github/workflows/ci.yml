@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-backend:
+    name: Build .NET solution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore TheLawyer.sln
+
+      - name: Build (Release, warnings as errors)
+        run: dotnet build TheLawyer.sln --no-restore --configuration Release
+
+      # Tests added with the Matters epic onward (Domain + Application + Api.IntegrationTests).
+      - name: Test (if any test projects exist)
+        run: |
+          if ls tests/*/*.csproj >/dev/null 2>&1; then
+            dotnet test TheLawyer.sln --configuration Release --no-build
+          else
+            echo "No test projects yet — Foundations epic ships skeleton only."
+          fi
+
+  build-web:
+    name: Build web SPA
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/thelawyer-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/thelawyer-web/package-lock.json
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  validate-terraform:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/azure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+      - name: terraform validate
+        run: terraform validate

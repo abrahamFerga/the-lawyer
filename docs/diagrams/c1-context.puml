@@ -1,0 +1,41 @@
+@startuml c1-context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title TheLawyer — C4 Level 1: System Context
+
+LAYOUT_WITH_LEGEND()
+
+Person(attorney,    "Attorney",           "Owns matters; bills time; reviews invoices")
+Person(paralegal,   "Paralegal",          "Drafts documents; manages calendar")
+Person(firm_admin,  "Firm Admin",         "Manages firm settings, RBAC, billing")
+Person(bookkeeper,  "Bookkeeper",         "Trust accounting, reconciliation")
+Person(client,      "Client",             "Portal: view matter, pay invoices, sign docs")
+
+System(thelawyer, "TheLawyer", "Multi-tenant practice management for US small law firms. Matter intake → time → billing → trust accounting + AI assistant.")
+
+System_Ext(b2c,        "Azure AD B2C",         "Identity for staff + clients (single tenant, role-claim)")
+System_Ext(docusign,   "DocuSign",             "E-signature; status callbacks file to matter")
+System_Ext(qbo,        "QuickBooks Online",    "Accounting sync (invoices, payments, expenses)")
+System_Ext(slack,      "Slack",                "Chatbot fanout + matter notifications")
+System_Ext(graph,      "Microsoft Graph",      "Outlook email-to-matter + calendar sync")
+System_Ext(dropbox,    "Dropbox",              "Optional document storage replication")
+System_Ext(claude,     "Anthropic Claude API", "AI matter assistant (private endpoint, no-retention)")
+System_Ext(monitor,    "Azure Monitor",        "Traces / metrics / logs")
+
+Rel(attorney,   thelawyer, "Uses dashboard + chatbot", "HTTPS")
+Rel(paralegal,  thelawyer, "Uses dashboard", "HTTPS")
+Rel(firm_admin, thelawyer, "Configures firm + RBAC + connectors", "HTTPS")
+Rel(bookkeeper, thelawyer, "Trust accounting + reconciliation", "HTTPS")
+Rel(client,     thelawyer, "Uses portal", "HTTPS")
+
+Rel(thelawyer, b2c,      "AuthN/Z", "OIDC")
+Rel(thelawyer, claude,   "AI assistant calls", "HTTPS (private endpoint)")
+Rel(thelawyer, monitor,  "OTel exports", "OTLP")
+
+Rel_Bi(thelawyer, docusign, "E-sig request + callback", "HTTPS + webhooks")
+Rel_Bi(thelawyer, qbo,      "Sync invoices/payments/expenses", "HTTPS + webhooks")
+Rel_Bi(thelawyer, slack,    "Chat fanout + inbound webhooks", "HTTPS + Events API")
+Rel_Bi(thelawyer, graph,    "Email-to-matter + calendar sync", "HTTPS + Graph subscriptions")
+Rel(thelawyer, dropbox,    "Optional doc replication", "HTTPS")
+
+@enduml

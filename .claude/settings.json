@@ -1,0 +1,31 @@
+{
+  "extraKnownMarketplaces": {
+    "abrahamfernandez/the-workflow": {
+      "source": {
+        "source": "github",
+        "repo": "abrahamfernandez/the-workflow"
+      }
+    },
+    "dotnet/skills": {
+      "source": {
+        "source": "github",
+        "repo": "dotnet/skills"
+      }
+    },
+    "anthropics/skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "theworkflow@abrahamfernandez/the-workflow": true,
+    "dotnet@dotnet/skills": true,
+    "dotnet-aspnet@dotnet/skills": true,
+    "dotnet-data@dotnet/skills": true,
+    "dotnet-ai@dotnet/skills": true,
+    "pdf@anthropics/skills": true,
+    "docx@anthropics/skills": true
+  }
+}

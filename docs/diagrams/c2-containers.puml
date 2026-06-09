@@ -1,0 +1,55 @@
+@startuml c2-containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title TheLawyer — C4 Level 2: Containers
+
+LAYOUT_WITH_LEGEND()
+
+Person(user,   "Staff / Client", "Authenticated via B2C")
+Person(admin,  "Firm Admin",    "Also accesses /hangfire")
+
+System_Boundary(thelawyer, "TheLawyer") {
+  Container(web,         "TheLawyer.Web",              "Vite + React + TS + shadcn + Tailwind + PWA", "Dashboard + Client Portal (one codebase, role-gated routes); slide-over chatbot panel; persistent matter timer")
+  Container(api,         "TheLawyer.Api",              ".NET 10 minimal APIs",                        "All HTTP traffic. Versioned /api/v1; Problem Details; idempotency; rate limiting")
+  Container(apphost,     "TheLawyer.AppHost",          ".NET 10 Aspire AppHost",                      "Local dev orchestration + deployment manifest")
+  ContainerDb(postgres,  "Postgres + pgvector",        "Postgres 16",                                 "Operational data; separate audit schema; vector embeddings for AI search")
+  ContainerDb(redis,     "Redis",                      "Redis 7",                                     "Distributed cache; idempotency replay; rate-limit windows")
+  Container(hangfire,    "Hangfire (in-process)",      "Hangfire.PostgreSql",                         "Scheduled + reactive jobs; /hangfire dashboard")
+  Container(blob,        "Azure Blob Storage",         "Private endpoint",                            "Per-matter SAS tokens (5-min expiry)")
+  Container(keyvault,    "Azure Key Vault",            "Managed identity",                            "Connector tokens, Claude API key, DB creds")
+}
+
+System_Ext(b2c,        "Azure AD B2C",         "OIDC")
+System_Ext(claude,     "Anthropic Claude",     "Private endpoint")
+System_Ext(slack,      "Slack",                "Working v1 connector")
+System_Ext(docusign,   "DocuSign",             "Outbound + webhooks")
+System_Ext(qbo,        "QuickBooks",           "Outbound + webhooks")
+System_Ext(graph,      "Microsoft Graph",      "Outlook + calendar")
+System_Ext(monitor,    "Azure Monitor",        "OTLP sink")
+
+Rel(user,  web,  "HTTPS")
+Rel(admin, web,  "HTTPS; /hangfire route to Hangfire dashboard")
+Rel(web,   api,  "REST + SSE (chatbot)", "HTTPS")
+
+Rel(api, postgres, "EF Core", "TLS")
+Rel(api, redis,    "StackExchange.Redis", "TLS")
+Rel(api, blob,     "Generates per-matter SAS", "HTTPS")
+Rel(api, keyvault, "Reads secrets via managed identity", "HTTPS")
+Rel(api, b2c,      "Validates JWT", "OIDC")
+Rel(api, claude,   "Matter chatbot via MAF", "HTTPS (private endpoint)")
+Rel(api, monitor,  "OTel exports", "OTLP")
+
+Rel(hangfire, postgres, "Job state via Hangfire.PostgreSql", "TLS")
+Rel(hangfire, api,      "Outbox dispatcher / reminders / cleanup", "in-process")
+
+Rel_Bi(api, slack,    "Bot messages + Events API webhooks", "HTTPS")
+Rel_Bi(api, docusign, "Envelope + callbacks", "HTTPS")
+Rel_Bi(api, qbo,      "Invoices/payments + callbacks", "HTTPS")
+Rel_Bi(api, graph,    "Email + calendar", "HTTPS")
+
+Rel(apphost, api,      "Local: starts container", "Aspire")
+Rel(apphost, postgres, "Local: starts container", "Aspire")
+Rel(apphost, redis,    "Local: starts container", "Aspire")
+Rel(apphost, web,      "Local: starts dev server", "Aspire")
+
+@enduml

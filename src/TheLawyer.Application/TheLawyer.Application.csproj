@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TheLawyer.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TheLawyer.Domain\TheLawyer.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

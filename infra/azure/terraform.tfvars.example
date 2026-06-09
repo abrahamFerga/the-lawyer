@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars or pass via -var-file=. NEVER commit a populated terraform.tfvars.
+
+environment             = "dev"
+location                = "eastus2"
+postgres_admin_login    = "thelawyeradmin"
+# postgres_admin_password is provided via TF_VAR_postgres_admin_password from CI/CD,
+# resolved from Key Vault. Do not put real secrets in this file.

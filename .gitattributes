@@ -1,0 +1,33 @@
+# Auto-detect text files; normalize line endings on commit.
+* text=auto eol=lf
+
+# Text
+*.cs       text diff=csharp
+*.csproj   text
+*.props    text
+*.targets  text
+*.json     text
+*.md       text
+*.yml      text
+*.yaml     text
+*.sh       text eol=lf
+*.ps1      text eol=crlf
+*.tf       text
+*.hcl      text
+*.tsx      text
+*.ts       text
+*.jsx      text
+*.js       text
+*.css      text
+*.html     text
+
+# Binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.ico      binary
+*.pdf      binary
+*.zip      binary
+*.nupkg    binary
+*.snupkg   binary
