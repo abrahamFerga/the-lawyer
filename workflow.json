@@ -24,6 +24,11 @@
       "provider": "azure-document-intelligence"
     }
   ],
+  "github": {
+    "repo": "abrahamFerga/the-lawyer",
+    "project": 7,
+    "visibility": "public"
+  },
   "skills": {
     "self": {
       "marketplace": "my-skills",
