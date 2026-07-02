@@ -1,63 +1,38 @@
 @startuml c3-components-api
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
-title TheLawyer.Api — C4 Level 3: Components
+title TheLawyer.Host — C4 Level 3: platform vs module components
 
 LAYOUT_WITH_LEGEND()
 
-Container_Boundary(api, "TheLawyer.Api") {
-  Component(pipeline, "Middleware pipeline", "ASP.NET Core", "ExceptionHandler → AuthN → TenantContext → AuthZ → Idempotency → RateLimit → AuditWriter")
-
-  Component(matters_eps,    "MattersEndpoints",     "Minimal API group", "/api/v1/matters/* + conflict-check")
-  Component(documents_eps,  "DocumentsEndpoints",   "Minimal API group", "/api/v1/matters/{id}/documents/*")
-  Component(calendar_eps,   "CalendarEndpoints",    "Minimal API group", "/api/v1/calendar/*")
-  Component(billing_eps,    "BillingEndpoints",     "Minimal API group", "/api/v1/billing/*, invoices/*")
-  Component(trust_eps,      "TrustEndpoints",       "Minimal API group", "/api/v1/trust/* — API-layer guardrails")
-  Component(portal_eps,     "PortalEndpoints",      "Minimal API group", "/api/v1/portal/* — client-scoped")
-  Component(ai_eps,         "AiAssistantEndpoints", "Minimal API group", "/api/v1/ai/matters/{id}/ask (SSE)")
-  Component(connectors_eps, "ConnectorEndpoints",   "Minimal API group", "/api/v1/connectors/{name}/webhook + install")
-  Component(reports_eps,    "ReportsEndpoints",     "Minimal API group", "/api/v1/reports/* — read-models only")
-  Component(compliance_eps, "ComplianceEndpoints",  "Minimal API group", "/api/v1/tenants/{id}/export, data-subject-request")
+Container_Boundary(host, "TheLawyer.Host") {
+  Boundary(platform, "Cortex platform (NuGet packages — not in this repo)") {
+    Component(auth,   "AuthN/AuthZ",            "Cortex.AspNetCore",     "Dev headers or IdP JWT; token-mode permission source; role -> permission baselines")
+    Component(runner, "AuthorizedAgentRunner",  "Cortex.Application",    "MAF agent runs; per-tool RBAC filter; tool-call audit; token usage")
+    Component(agui,   "AG-UI + SignalR chat",   "Cortex.AspNetCore",     "POST /api/agui/{module} SSE; hub /hubs/agent")
+    Component(rag,    "RAG core",               "Cortex.Infrastructure", "Hybrid pgvector+tsvector (RRF); ingest job; fail-closed collection gates")
+    Component(jobs,   "Job runner",             "Cortex.Infrastructure", "Leases, cooperative cancel, max attempts, capability snapshot")
+    Component(conn,   "Connector runtime",      "Cortex.Connectors",     "Registry; per-tenant enable; protected secrets; per-user OAuth; bindings; sync")
+    Component(files,  "Files + PDF tools",      "Cortex.Infrastructure", "File store; PdfPig read/generate; upload endpoints")
+    Component(adminapi, "Admin API",            "Cortex.AspNetCore",     "Security catalog, users/roles, usage, audit, connectors")
+  }
+  Boundary(module, "TheLawyer.Legal (this repo)") {
+    Component(legalmod, "LegalModule",       "IModule v1.3.0",  "Manifest, tabs, 13 agent tools")
+    Component(tools,    "MatterTools etc.",  "IModuleToolSource", "Matters, walls, clause library, playbook, bulk review")
+    Component(gate,     "MatterRagGate",     "IRagCollectionGate", "Matter knowledge respects ethical walls (fail-closed)")
+    Component(sync,     "MatterSyncHandler", "connector sync handler", "Folder sync -> matter documents -> RAG ingest")
+    Component(db,       "LegalDbContext",    "EF Core + migrations", "Matter, Party, MatterWall, ClauseLibraryEntry, PlaybookRule")
+  }
 }
 
-Container_Boundary(app, "TheLawyer.Application.*") {
-  Component(use_cases, "Use-case handlers", "C#", "One class per use case (no MediatR)")
-  Component(abstractions, "Abstractions", "C#", "ITenantContext, IAuditLog, IConflictAttestor, IAiAssistantService, IVectorStore, IChannel, IIntegration")
-}
-
-Container_Boundary(infra, "TheLawyer.Infrastructure*") {
-  Component(efcore, "EF Core + global tenant filter", "C#", "DbContext, migrations, multi-tenant query filter")
-  Component(outbox, "Outbox", "C#", "Per-tenant outbox table; Hangfire dispatcher")
-  Component(audit,  "Audit log writer", "C#", "Append-only; redacts PII per attribute")
-  Component(connectors_impl, "Connector impls", "C#", "Infrastructure.Slack, .Azure, .DocuSign etc.")
-}
-
-Rel(pipeline, matters_eps,    "")
-Rel(pipeline, documents_eps,  "")
-Rel(pipeline, calendar_eps,   "")
-Rel(pipeline, billing_eps,    "")
-Rel(pipeline, trust_eps,      "")
-Rel(pipeline, portal_eps,     "")
-Rel(pipeline, ai_eps,         "")
-Rel(pipeline, connectors_eps, "")
-Rel(pipeline, reports_eps,    "")
-Rel(pipeline, compliance_eps, "")
-
-Rel(matters_eps,    use_cases, "Invokes")
-Rel(documents_eps,  use_cases, "Invokes")
-Rel(calendar_eps,   use_cases, "Invokes")
-Rel(billing_eps,    use_cases, "Invokes")
-Rel(trust_eps,      use_cases, "Invokes")
-Rel(portal_eps,     use_cases, "Invokes")
-Rel(ai_eps,         use_cases, "Invokes")
-Rel(connectors_eps, use_cases, "Invokes")
-Rel(reports_eps,    use_cases, "Invokes")
-Rel(compliance_eps, use_cases, "Invokes")
-
-Rel(use_cases, abstractions, "Depends on")
-Rel(abstractions, efcore,    "Implementations")
-Rel(abstractions, outbox,    "Implementations")
-Rel(abstractions, audit,     "Implementations")
-Rel(abstractions, connectors_impl, "Implementations")
+Rel(agui, runner, "Runs the legal agent")
+Rel(runner, tools, "Dispatches permitted tools")
+Rel(runner, conn,  "Connector tools (if tenant-enabled)")
+Rel(tools, db,     "EF Core")
+Rel(rag, gate,     "Access check per collection")
+Rel(sync, rag,     "Enqueues rag-ingest")
+Rel(conn, sync,    "Sync job per binding")
+Rel(jobs, rag,     "platform.rag-ingest")
+Rel(auth, runner,  "Capability set")
 
 @enduml

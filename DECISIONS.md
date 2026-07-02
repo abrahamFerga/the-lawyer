@@ -172,3 +172,37 @@ This is an append-only hash chain per matter. Detection of tampering reduces to 
 
 - **Plain attestation record** — Rejected. Standard practice in the market, but doesn't differentiate and isn't audit-grade.
 - **External notarisation (OpenTimestamps / Chainpoint)** — Considered but over-engineered for v1. Could be added later as a tamper-evidence boost on top of the hash chain.
+
+---
+
+## ADR-0007: Adopt the Cortex platform; retire the hand-rolled foundation
+
+- **Status**: accepted — **supersedes ADR-0001 and ADR-0002; narrows ADR-0003 and ADR-0004**
+- **Date**: 2026-07-02
+- **Deciders**: Abraham Fernandez
+
+### Context
+
+The product owner directed: *"It needs to use Cortex completely… Remove anything that is not aligned with Cortex."* Cortex is the in-house multi-tenant agent platform (.NET 10 + Aspire + MAF, shipped as NuGet/npm packages) that already provides — tested and running — authentication (dev headers + external-IdP token mode), multi-tenancy, runtime-editable RBAC, append-only audit, AG-UI/SignalR chat, document/PDF tools, hybrid-search RAG with fail-closed collection gates, a leased background-job runner, a connector SDK (per-tenant enablement, protected secrets, per-user OAuth, sync), and two React front-ends (domain UI + admin console).
+
+The first development iterations of TheLawyer (PR #25, branch feat/12) were re-implementing that same foundation by hand: own JWT/B2C wiring, own tenancy filters, own audit schema, own outbox + Hangfire, own React app. That is duplicated, divergent, and untested relative to the platform.
+
+### Decision
+
+TheLawyer is a **thin product host on Cortex packages**. This repo contains only:
+1. `TheLawyer.Legal` — the legal domain as a Cortex module (`IModule`),
+2. `TheLawyer.Host` — `AddCortexPlatform()` + the module + the product's connectors,
+3. `TheLawyer.AppHost` — Aspire orchestration.
+
+All hand-rolled platform code was removed. Platform gaps discovered while building legal features are fixed **in Cortex**, not re-implemented here.
+
+### Consequences
+
+- **Positive**: The Foundations epic collapses to composition; the platform's ~330-test suite covers what this repo no longer implements. Legal features (calendar, billing, trust, portal) build as module capabilities with RBAC/audit/RAG for free. Cross-vertical connection via `cortex-peer` comes free.
+- **Negative**: Coupled to Cortex release cadence; until Cortex publishes to a package registry, the repo consumes a locally packed `.packages` feed (regenerated via `dotnet pack` from the Cortex repo — versions must be bumped on every repack to defeat the NuGet global cache).
+- **Supersessions**: ADR-0001 (Hangfire) and ADR-0002 (hand-rolled outbox) are superseded by the Cortex job runner (leases, cooperative cancel, retries). ADR-0003 (B2C) survives narrowed: identity integrates through Cortex's `Auth:PermissionSource=Token` mode rather than bespoke wiring. ADR-0004 (pgvector) survives as-is — Cortex's RAG core is pgvector-based, now with hybrid tsvector+RRF search. ADR-0005/0006 remain product decisions to realize inside the module.
+
+### Alternatives considered
+
+- **Continue the hand-rolled foundation** — Rejected by the product owner; duplicates the platform and diverges from it.
+- **Fork Cortex code into this repo** — Rejected. Package consumption keeps one platform, one fix-location, many products.

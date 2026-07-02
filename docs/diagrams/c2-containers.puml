@@ -1,55 +1,43 @@
 @startuml c2-containers
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
-title TheLawyer — C4 Level 2: Containers
+title TheLawyer — C4 Level 2: Containers (Cortex-based)
 
 LAYOUT_WITH_LEGEND()
 
-Person(user,   "Staff / Client", "Authenticated via B2C")
-Person(admin,  "Firm Admin",    "Also accesses /hangfire")
+Person(user,  "Staff / Client", "Dev: X-Dev headers; Prod: external IdP (token mode)")
+Person(admin, "Firm Admin",     "Cortex admin console")
 
-System_Boundary(thelawyer, "TheLawyer") {
-  Container(web,         "TheLawyer.Web",              "Vite + React + TS + shadcn + Tailwind + PWA", "Dashboard + Client Portal (one codebase, role-gated routes); slide-over chatbot panel; persistent matter timer")
-  Container(api,         "TheLawyer.Api",              ".NET 10 minimal APIs",                        "All HTTP traffic. Versioned /api/v1; Problem Details; idempotency; rate limiting")
-  Container(apphost,     "TheLawyer.AppHost",          ".NET 10 Aspire AppHost",                      "Local dev orchestration + deployment manifest")
-  ContainerDb(postgres,  "Postgres + pgvector",        "Postgres 16",                                 "Operational data; separate audit schema; vector embeddings for AI search")
-  ContainerDb(redis,     "Redis",                      "Redis 7",                                     "Distributed cache; idempotency replay; rate-limit windows")
-  Container(hangfire,    "Hangfire (in-process)",      "Hangfire.PostgreSql",                         "Scheduled + reactive jobs; /hangfire dashboard")
-  Container(blob,        "Azure Blob Storage",         "Private endpoint",                            "Per-matter SAS tokens (5-min expiry)")
-  Container(keyvault,    "Azure Key Vault",            "Managed identity",                            "Connector tokens, Claude API key, DB creds")
+System_Boundary(thelawyer, "TheLawyer (thin product on Cortex)") {
+  Container(apphost, "TheLawyer.AppHost", ".NET 10 Aspire AppHost",              "Orchestrates Postgres, Redis, API; AI provider params (Mock default)")
+  Container(host,    "TheLawyer.Host",    "ASP.NET Core + Cortex.AspNetCore",    "AddCortexPlatform() + LegalModule + 4 connectors. Chat (AG-UI/SignalR), admin API, jobs, RAG — all from Cortex packages")
+  Container(legal,   "TheLawyer.Legal",   "Cortex.Modules.Sdk module",           "Matters, walls, clause library, playbook, bulk review, matter knowledge, folder sync")
+  Container(ui,      "Web UI",            "@cortex/ui + @cortex/admin-ui",       "Chat (AG-UI, drag-drop), module tabs, admin console")
+  ContainerDb(pg,    "Postgres",          "pgvector/pgvector:pg17",              "cortex-platform (operational + embeddings) and cortex-audit (append-only)")
+  ContainerDb(redis, "Redis",             "Redis 7",                             "Cache / backplane")
 }
 
-System_Ext(b2c,        "Azure AD B2C",         "OIDC")
-System_Ext(claude,     "Anthropic Claude",     "Private endpoint")
-System_Ext(slack,      "Slack",                "Working v1 connector")
-System_Ext(docusign,   "DocuSign",             "Outbound + webhooks")
-System_Ext(qbo,        "QuickBooks",           "Outbound + webhooks")
-System_Ext(graph,      "Microsoft Graph",      "Outlook + calendar")
-System_Ext(monitor,    "Azure Monitor",        "OTLP sink")
+System_Ext(idp,   "External IdP",       "Entra External ID / B2C (token mode)")
+System_Ext(ai,    "AI provider",        "Mock (default) / OpenAI / AzureOpenAI / Ollama via MEAI")
+System_Ext(graph, "Microsoft Graph",    "msgraph connector — per-user delegated OAuth")
+System_Ext(blob,  "Azure Blob Storage", "azure-blob connector")
+System_Ext(peer,  "Peer Cortex system", "cortex-peer connector over AG-UI")
 
-Rel(user,  web,  "HTTPS")
-Rel(admin, web,  "HTTPS; /hangfire route to Hangfire dashboard")
-Rel(web,   api,  "REST + SSE (chatbot)", "HTTPS")
+Rel(user,  ui,   "HTTPS")
+Rel(admin, ui,   "HTTPS")
+Rel(ui,    host, "AG-UI (POST + SSE), SignalR, REST", "HTTPS")
 
-Rel(api, postgres, "EF Core", "TLS")
-Rel(api, redis,    "StackExchange.Redis", "TLS")
-Rel(api, blob,     "Generates per-matter SAS", "HTTPS")
-Rel(api, keyvault, "Reads secrets via managed identity", "HTTPS")
-Rel(api, b2c,      "Validates JWT", "OIDC")
-Rel(api, claude,   "Matter chatbot via MAF", "HTTPS (private endpoint)")
-Rel(api, monitor,  "OTel exports", "OTLP")
+Rel(host, legal, "Hosts as IModule", "in-process")
+Rel(host, pg,    "EF Core (platform + module schemas)", "TLS")
+Rel(host, redis, "Cache", "TLS")
+Rel(host, idp,   "Validates JWT; roles -> permission baselines", "OIDC")
+Rel(host, ai,    "MAF agent runs via IChatClient", "HTTPS")
+Rel_Bi(host, graph, "Connector tools + sync", "HTTPS")
+Rel_Bi(host, blob,  "Connector tools + sync", "HTTPS")
+Rel_Bi(host, peer,  "Cross-system agent calls", "AG-UI")
 
-Rel(hangfire, postgres, "Job state via Hangfire.PostgreSql", "TLS")
-Rel(hangfire, api,      "Outbox dispatcher / reminders / cleanup", "in-process")
-
-Rel_Bi(api, slack,    "Bot messages + Events API webhooks", "HTTPS")
-Rel_Bi(api, docusign, "Envelope + callbacks", "HTTPS")
-Rel_Bi(api, qbo,      "Invoices/payments + callbacks", "HTTPS")
-Rel_Bi(api, graph,    "Email + calendar", "HTTPS")
-
-Rel(apphost, api,      "Local: starts container", "Aspire")
-Rel(apphost, postgres, "Local: starts container", "Aspire")
-Rel(apphost, redis,    "Local: starts container", "Aspire")
-Rel(apphost, web,      "Local: starts dev server", "Aspire")
+Rel(apphost, host,  "Starts", "Aspire")
+Rel(apphost, pg,    "Starts container", "Aspire")
+Rel(apphost, redis, "Starts container", "Aspire")
 
 @enduml
