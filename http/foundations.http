@@ -1,0 +1,50 @@
+# TheLawyer — Foundations API request catalog.
+#
+# One request per endpoint, checked into the repo, so the API can be exercised
+# deterministically and reviewably (complements the OpenAPI/Scalar surface).
+#
+# HOST + secrets come from http/.env (dotenv) — NEVER inline them here:
+#   - Aspire assigns the API a dynamic port each run. `scripts/run-and-wait.ps1`
+#     boots the stack and writes API_BASE into http/.env automatically.
+#   - http/.env is gitignored; http/.env.example is the committed template.
+#
+# Usage (VS Code REST Client / Rider / Visual Studio .http runner):
+#   1. pwsh scripts/run-and-wait.ps1
+#   2. open this file, click "Send Request" above any block.
+
+@host = {{$dotenv API_BASE}}
+@token = {{$dotenv TOKEN}}
+
+### Liveness probe — process is up (no auth)
+GET {{host}}/alive
+
+### Readiness / health check (no auth)
+GET {{host}}/health
+
+### Ping — confirms the request pipeline end-to-end (anonymous in Foundations)
+GET {{host}}/api/v1/ping
+Accept: application/json
+
+### OpenAPI document (Development only)
+GET {{host}}/openapi/v1.json
+Accept: application/json
+
+###
+# ─────────────────────────────────────────────────────────────────────────────
+# Template for the authed, tenant-scoped, idempotent endpoints that land with
+# later epics. Kept here so every future request honours the cross-cutting
+# contract: a test OIDC bearer token, the tenant header, and an idempotency key.
+# The token is a TEST identity from http/.env — never a real one.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ### Create matter (authed, tenant-scoped, idempotent) — EXAMPLE, not yet implemented
+# POST {{host}}/api/v1/matters
+# Authorization: Bearer {{token}}
+# X-Tenant-Id: {{$dotenv TENANT_ID}}
+# Idempotency-Key: {{$guid}}
+# Content-Type: application/json
+#
+# {
+#   "title": "Sample matter",
+#   "clientId": "00000000-0000-0000-0000-000000000000"
+# }

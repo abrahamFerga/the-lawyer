@@ -1,9 +1,9 @@
 {
   "extraKnownMarketplaces": {
-    "abrahamfernandez/the-workflow": {
+    "my-skills": {
       "source": {
         "source": "github",
-        "repo": "abrahamfernandez/the-workflow"
+        "repo": "abrahamFerga/my-skills"
       }
     },
     "dotnet/skills": {
@@ -20,7 +20,10 @@
     }
   },
   "enabledPlugins": {
-    "theworkflow@abrahamfernandez/the-workflow": true,
+    "workflow-core@my-skills": true,
+    "system-definition@my-skills": true,
+    "architecture@my-skills": false,
+    "development@my-skills": false,
     "dotnet@dotnet/skills": true,
     "dotnet-aspnet@dotnet/skills": true,
     "dotnet-data@dotnet/skills": true,

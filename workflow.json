@@ -1,6 +1,7 @@
 {
   "name": "the-lawyer",
   "industry": "legal",
+  "stage": "system-definition",
   "cloud": "azure",
   "connectors": [
     "slack",
@@ -10,24 +11,47 @@
     "dropbox"
   ],
   "capabilities": [
-    { "name": "vector-db", "provider": "pgvector" },
-    { "name": "file-storage", "provider": "azure-blob" },
-    { "name": "ocr", "provider": "azure-document-intelligence" }
+    {
+      "name": "vector-db",
+      "provider": "pgvector"
+    },
+    {
+      "name": "file-storage",
+      "provider": "azure-blob"
+    },
+    {
+      "name": "ocr",
+      "provider": "azure-document-intelligence"
+    }
   ],
   "skills": {
     "self": {
-      "marketplace": "abrahamfernandez/the-workflow",
-      "plugins": ["theworkflow"]
+      "marketplace": "my-skills",
+      "repo": "abrahamFerga/my-skills",
+      "plugins": [
+        "workflow-core",
+        "system-definition",
+        "architecture",
+        "development"
+      ]
     },
     "external": [
       {
         "marketplace": "dotnet/skills",
-        "plugins": ["dotnet", "dotnet-aspnet", "dotnet-data", "dotnet-ai"],
-        "reason": "Authoritative .NET coding-agent skills maintained by the .NET team — Aspire wiring, ASP.NET Core minimal-API conventions, EF Core migrations, MAF / Azure OpenAI patterns."
+        "plugins": [
+          "dotnet",
+          "dotnet-aspnet",
+          "dotnet-data",
+          "dotnet-ai"
+        ],
+        "reason": "Authoritative .NET coding-agent skills maintained by the .NET team \u2014 Aspire wiring, ASP.NET Core minimal-API conventions, EF Core migrations, MAF / Azure OpenAI patterns."
       },
       {
         "marketplace": "anthropics/skills",
-        "plugins": ["pdf", "docx"],
+        "plugins": [
+          "pdf",
+          "docx"
+        ],
         "reason": "Document generation for engagement letters, invoices, court filings, and PDF exports for GDPR data-subject requests."
       }
     ]
