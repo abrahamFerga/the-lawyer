@@ -61,12 +61,13 @@ public sealed class LegalCatalogTests
 
         Assert.Equal("legal", manifest.Id);
         Assert.Equal(
-            ["search_clauses", "draft_clause", "create_matter", "set_matter_status", "list_matters", "attach_document_to_matter", "list_matter_documents", "get_playbook", "start_bulk_review", "index_matter_documents", "restrict_matter_access", "open_matter_access", "connect_matter_folder", "sync_matter_folder"],
+            ["search_clauses", "draft_clause", "create_matter", "set_matter_status", "list_matters", "add_matter_party", "check_conflicts", "attest_conflict_check", "list_conflict_attestations", "attach_document_to_matter", "list_matter_documents", "get_playbook", "start_bulk_review", "index_matter_documents", "restrict_matter_access", "open_matter_access", "connect_matter_folder", "sync_matter_folder"],
             manifest.Tools.Select(t => t.Name));
 
         // The side-effecting matter tools are held for human approval; the read tools are not.
         Assert.All(
-            manifest.Tools.Where(t => t.Name is "create_matter" or "set_matter_status" or "attach_document_to_matter" or "start_bulk_review"
+            manifest.Tools.Where(t => t.Name is "create_matter" or "set_matter_status" or "add_matter_party"
+                or "attest_conflict_check" or "attach_document_to_matter" or "start_bulk_review"
                 or "index_matter_documents" or "restrict_matter_access" or "open_matter_access"
                 or "connect_matter_folder" or "sync_matter_folder"),
             t => Assert.True(t.RequiresApproval));

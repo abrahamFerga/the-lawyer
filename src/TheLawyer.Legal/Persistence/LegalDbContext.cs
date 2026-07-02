@@ -18,6 +18,8 @@ public sealed class LegalDbContext(
 
     public DbSet<Matter> Matters => Set<Matter>();
     public DbSet<MatterDocument> MatterDocuments => Set<MatterDocument>();
+    public DbSet<MatterParty> MatterParties => Set<MatterParty>();
+    public DbSet<ConflictAttestation> ConflictAttestations => Set<ConflictAttestation>();
     public DbSet<TenantClause> Clauses => Set<TenantClause>();
     public DbSet<PlaybookRule> PlaybookRules => Set<PlaybookRule>();
 
@@ -49,6 +51,30 @@ public sealed class LegalDbContext(
             b.Property(x => x.Note).HasMaxLength(500);
             b.HasIndex(x => x.MatterId);
             b.HasIndex(x => new { x.MatterId, x.FileId }).IsUnique(); // a file attaches to a matter once
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<MatterParty>(b =>
+        {
+            b.ToTable("matter_parties");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Role).HasMaxLength(16).IsRequired();
+            b.HasIndex(x => x.MatterId);
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<ConflictAttestation>(b =>
+        {
+            b.ToTable("conflict_attestations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SearchTermsJson).IsRequired();
+            b.Property(x => x.DataSnapshotJson).IsRequired();
+            b.Property(x => x.PriorAttestationHash).HasMaxLength(64);
+            b.Property(x => x.AttestationHash).HasMaxLength(64).IsRequired();
+            b.HasIndex(x => new { x.MatterId, x.PerformedAt });
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });
 

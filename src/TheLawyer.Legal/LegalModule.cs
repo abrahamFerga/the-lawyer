@@ -31,7 +31,7 @@ public sealed class LegalModule : IModule
     {
         Id = Id,
         DisplayName = "Legal",
-        Version = "1.4.0",
+        Version = "1.5.0",
         Description = "Matter-centric legal assistant. Organize case documents into matters, search a clause library, and draft clauses for review.",
         Icon = "scale",
         AgentInstructions =
@@ -44,6 +44,9 @@ public sealed class LegalModule : IModule
             "index_matter_documents when it is not indexed yet. For a single specific file, call read_document with " +
             "its file id. Either way, CITE the file name and id for every claim you take from a document — never " +
             "state document contents without a citation. " +
+            "BEFORE opening a matter for a new client or adverse party, run check_conflicts with every " +
+            "involved name; after the user decides, freeze the result with attest_conflict_check on the matter " +
+            "(record parties with add_matter_party as they become known). " +
             "Use search_clauses / draft_clause for clause work (the firm's own curated library). To deliver a draft as " +
             "work product, chain the tools: draft_clause, then generate_pdf with the drafted text, then " +
             "attach_document_to_matter with the returned file id. When reviewing a contract, first call get_playbook " +
@@ -95,6 +98,32 @@ public sealed class LegalModule : IModule
                 Name = "list_matters",
                 Description = "List the tenant's matters with status and document counts.",
                 Permission = Permissions.ForTool(Id, "list_matters"),
+            },
+            new ToolDescriptor
+            {
+                Name = "add_matter_party",
+                Description = "Record a party (client / opposing / related) on a matter — the surface conflict checks search. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "add_matter_party"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "check_conflicts",
+                Description = "Search all matters' parties and clients for conflicts of interest against given names. Read-only; restricted matters register as hits without revealing details.",
+                Permission = Permissions.ForTool(Id, "check_conflicts"),
+            },
+            new ToolDescriptor
+            {
+                Name = "attest_conflict_check",
+                Description = "Freeze a conflict search into the matter's tamper-evident hash-chained attestation record. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "attest_conflict_check"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "list_conflict_attestations",
+                Description = "List a matter's conflict attestations and verify the hash chain's integrity.",
+                Permission = Permissions.ForTool(Id, "list_conflict_attestations"),
             },
             new ToolDescriptor
             {
@@ -194,6 +223,7 @@ public sealed class LegalModule : IModule
     {
         services.AddScoped<LegalTools>();
         services.AddScoped<MatterTools>();
+        services.AddScoped<ConflictTools>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 

@@ -14,6 +14,7 @@ public sealed class LegalToolSource : IModuleToolSource
     {
         var clauses = scopedServices.GetRequiredService<LegalTools>();
         var matters = scopedServices.GetRequiredService<MatterTools>();
+        var conflicts = scopedServices.GetRequiredService<ConflictTools>();
 
         return
         [
@@ -53,6 +54,36 @@ public sealed class LegalToolSource : IModuleToolSource
                 Name = "list_matters",
                 Permission = Permissions.ForTool(ModuleId, "list_matters"),
                 Function = AIFunctionFactory.Create(matters.ListMatters, name: "list_matters"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "add_matter_party",
+                Permission = Permissions.ForTool(ModuleId, "add_matter_party"),
+                Function = AIFunctionFactory.Create(conflicts.AddMatterParty, name: "add_matter_party"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "check_conflicts",
+                Permission = Permissions.ForTool(ModuleId, "check_conflicts"),
+                Function = AIFunctionFactory.Create(conflicts.CheckConflicts, name: "check_conflicts"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "attest_conflict_check",
+                Permission = Permissions.ForTool(ModuleId, "attest_conflict_check"),
+                Function = AIFunctionFactory.Create(conflicts.AttestConflictCheck, name: "attest_conflict_check"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_conflict_attestations",
+                Permission = Permissions.ForTool(ModuleId, "list_conflict_attestations"),
+                Function = AIFunctionFactory.Create(conflicts.ListConflictAttestations, name: "list_conflict_attestations"),
             },
             new ModuleTool
             {
