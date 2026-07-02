@@ -31,7 +31,7 @@ public sealed class LegalModule : IModule
     {
         Id = Id,
         DisplayName = "Legal",
-        Version = "1.5.0",
+        Version = "1.6.0",
         Description = "Matter-centric legal assistant. Organize case documents into matters, search a clause library, and draft clauses for review.",
         Icon = "scale",
         AgentInstructions =
@@ -47,8 +47,10 @@ public sealed class LegalModule : IModule
             "BEFORE opening a matter for a new client or adverse party, run check_conflicts with every " +
             "involved name; after the user decides, freeze the result with attest_conflict_check on the matter " +
             "(record parties with add_matter_party as they become known). " +
-            "Use search_clauses / draft_clause for clause work (the firm's own curated library). To deliver a draft as " +
-            "work product, chain the tools: draft_clause, then generate_pdf with the drafted text, then " +
+            "Use search_clauses / draft_clause for clause work (the firm's own curated library); for a full document " +
+            "(an NDA, a consulting agreement) use draft_from_template (see list_document_templates; curate with " +
+            "save_document_template). To deliver a draft as " +
+            "work product, chain the tools: draft_clause or draft_from_template, then generate_pdf with the drafted text, then " +
             "attach_document_to_matter with the returned file id. When reviewing a contract, first call get_playbook " +
             "and check the document against every rule, citing the file for each finding. Always make clear that " +
             "output is a starting template, not legal advice, and recommend review by a licensed attorney. Never " +
@@ -78,6 +80,25 @@ public sealed class LegalModule : IModule
                 Name = "draft_clause",
                 Description = "Draft a standard contract clause filled in with the two party names.",
                 Permission = Permissions.ForTool(Id, "draft_clause"),
+            },
+            new ToolDescriptor
+            {
+                Name = "save_document_template",
+                Description = "Save a reusable document template (ordered clause types assembled by draft_from_template). Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "save_document_template"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "list_document_templates",
+                Description = "List the firm's document templates and the clauses each assembles.",
+                Permission = Permissions.ForTool(Id, "list_document_templates"),
+            },
+            new ToolDescriptor
+            {
+                Name = "draft_from_template",
+                Description = "Assemble a full document draft from a saved template with the party names filled in.",
+                Permission = Permissions.ForTool(Id, "draft_from_template"),
             },
             new ToolDescriptor
             {
@@ -277,6 +298,19 @@ public sealed class LegalModule : IModule
                     Template = clause.Template,
                 });
             }
+        }
+
+        if (!await db.DocumentTemplates.AnyAsync(cancellationToken))
+        {
+            // One working template out of the box, so draft_from_template demos immediately; the
+            // clause slugs reference the seeded library above.
+            db.DocumentTemplates.Add(new DocumentTemplate
+            {
+                TenantId = tenantId,
+                Name = "mutual-nda",
+                Title = "Mutual Non-Disclosure Agreement between {PartyA} and {PartyB}",
+                ClauseSlugsJson = """["confidentiality","termination","governing-law"]""",
+            });
         }
 
         if (!await db.PlaybookRules.AnyAsync(cancellationToken))

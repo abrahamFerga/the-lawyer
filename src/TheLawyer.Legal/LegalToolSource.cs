@@ -35,6 +35,28 @@ public sealed class LegalToolSource : IModuleToolSource
             new ModuleTool
             {
                 ModuleId = ModuleId,
+                Name = "save_document_template",
+                Permission = Permissions.ForTool(ModuleId, "save_document_template"),
+                Function = AIFunctionFactory.Create(clauses.SaveDocumentTemplate, name: "save_document_template"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_document_templates",
+                Permission = Permissions.ForTool(ModuleId, "list_document_templates"),
+                Function = AIFunctionFactory.Create(clauses.ListDocumentTemplates, name: "list_document_templates"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "draft_from_template",
+                Permission = Permissions.ForTool(ModuleId, "draft_from_template"),
+                Function = AIFunctionFactory.Create(clauses.DraftFromTemplate, name: "draft_from_template"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
                 Name = "create_matter",
                 Permission = Permissions.ForTool(ModuleId, "create_matter"),
                 Function = AIFunctionFactory.Create(matters.CreateMatter, name: "create_matter"),
