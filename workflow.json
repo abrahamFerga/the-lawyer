@@ -1,7 +1,7 @@
 {
   "name": "the-lawyer",
   "industry": "legal",
-  "stage": "system-definition",
+  "stage": "architecture",
   "cloud": "azure",
   "connectors": [
     "slack",
