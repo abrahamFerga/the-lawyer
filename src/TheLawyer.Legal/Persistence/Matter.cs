@@ -7,6 +7,7 @@ public enum MatterStatus
 {
     Open = 0,
     Closed = 1,
+    OnHold = 2,
 }
 
 /// <summary>
@@ -18,10 +19,44 @@ public sealed class Matter : TenantEntityBase
 {
     public required string Name { get; set; }
 
+    /// <summary>
+    /// The firm-facing docket number, assigned at creation as <c>YYYY-NNNN</c> (year of opening +
+    /// per-tenant sequence). Null only on matters created before numbering existed.
+    /// </summary>
+    public string? MatterNumber { get; set; }
+
     /// <summary>The client this matter is for (display-level; the PM system stays the system of record).</summary>
     public string? ClientName { get; set; }
 
+    /// <summary>Canonical practice area from <see cref="PracticeAreas"/>, or null when uncategorized.</summary>
+    public string? PracticeArea { get; set; }
+
     public MatterStatus Status { get; set; } = MatterStatus.Open;
+
+    /// <summary>Set when the matter closes; cleared on reopen.</summary>
+    public DateTimeOffset? ClosedAt { get; set; }
+
+    /// <summary>
+    /// Applies a status transition, keeping <see cref="ClosedAt"/> consistent. Any state may move
+    /// to any other (firms reopen closed matters, hold open ones); the value of modeling it here is
+    /// the timestamp bookkeeping and a single audited mutation path, not transition denial.
+    /// </summary>
+    public string ApplyStatus(MatterStatus next, DateTimeOffset now)
+    {
+        var previous = Status;
+        Status = next;
+        ClosedAt = next == MatterStatus.Closed ? (ClosedAt ?? now) : null;
+        return previous == next
+            ? $"Matter '{Name}' was already {Describe(next)}."
+            : $"Matter '{Name}' is now {Describe(next)} (was {Describe(previous)}).";
+    }
+
+    private static string Describe(MatterStatus status) => status switch
+    {
+        MatterStatus.OnHold => "on hold",
+        MatterStatus.Closed => "closed",
+        _ => "open",
+    };
 
     /// <summary>
     /// The ethical wall (legal v1 item 10): null means open to the whole tenant; a JSON array of

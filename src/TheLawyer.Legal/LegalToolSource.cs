@@ -42,6 +42,14 @@ public sealed class LegalToolSource : IModuleToolSource
             new ModuleTool
             {
                 ModuleId = ModuleId,
+                Name = "set_matter_status",
+                Permission = Permissions.ForTool(ModuleId, "set_matter_status"),
+                Function = AIFunctionFactory.Create(matters.SetMatterStatus, name: "set_matter_status"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
                 Name = "list_matters",
                 Permission = Permissions.ForTool(ModuleId, "list_matters"),
                 Function = AIFunctionFactory.Create(matters.ListMatters, name: "list_matters"),

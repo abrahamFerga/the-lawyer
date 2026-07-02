@@ -31,7 +31,7 @@ public sealed class LegalModule : IModule
     {
         Id = Id,
         DisplayName = "Legal",
-        Version = "1.3.0",
+        Version = "1.4.0",
         Description = "Matter-centric legal assistant. Organize case documents into matters, search a clause library, and draft clauses for review.",
         Icon = "scale",
         AgentInstructions =
@@ -79,8 +79,15 @@ public sealed class LegalModule : IModule
             new ToolDescriptor
             {
                 Name = "create_matter",
-                Description = "Create a legal matter (engagement workspace). Side-effecting: writes data and requires human approval.",
+                Description = "Create a legal matter (engagement workspace) with an auto-assigned matter number and optional practice area. Side-effecting: writes data and requires human approval.",
                 Permission = Permissions.ForTool(Id, "create_matter"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "set_matter_status",
+                Description = "Change a matter's status (open / on-hold / closed). Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "set_matter_status"),
                 RequiresApproval = true,
             },
             new ToolDescriptor
@@ -161,7 +168,8 @@ public sealed class LegalModule : IModule
                 DataEndpoint = "/api/legal/matters",
                 Columns =
                 [
-                    new("name", "Matter"), new("clientName", "Client"), new("status", "Status"),
+                    new("matterNumber", "Number"), new("name", "Matter"), new("clientName", "Client"),
+                    new("practiceArea", "Practice area"), new("status", "Status"),
                     new("documentCount", "Documents"), new("createdAt", "Opened"),
                 ],
             },
@@ -378,14 +386,14 @@ public sealed class LegalModule : IModule
                         .Take(200)
                         .Select(m => new
                         {
-                            m.Id, m.Name, m.ClientName, m.Status, m.RestrictedUserIdsJson,
-                            DocumentCount = m.Documents.Count, m.CreatedAt,
+                            m.Id, m.Name, m.MatterNumber, m.ClientName, m.PracticeArea, m.Status,
+                            m.RestrictedUserIdsJson, DocumentCount = m.Documents.Count, m.CreatedAt,
                         })
                         .ToListAsync(cancellationToken))
                     .Where(m => Matter.WallAllows(m.RestrictedUserIdsJson, current.UserId))
                     .Select(m => new MatterDto(
-                        m.Id, m.Name, m.ClientName, m.Status.ToString(), m.DocumentCount,
-                        DateOnly.FromDateTime(m.CreatedAt.UtcDateTime)));
+                        m.Id, m.MatterNumber, m.Name, m.ClientName, m.PracticeArea, m.Status.ToString(),
+                        m.DocumentCount, DateOnly.FromDateTime(m.CreatedAt.UtcDateTime)));
                 return Results.Ok(matters);
             })
             .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
@@ -414,7 +422,9 @@ public sealed class LegalModule : IModule
             .WithName("Legal_GetMatterDocuments");
     }
 
-    private sealed record MatterDto(Guid Id, string Name, string? ClientName, string Status, int DocumentCount, DateOnly CreatedAt);
+    private sealed record MatterDto(
+        Guid Id, string? MatterNumber, string Name, string? ClientName, string? PracticeArea,
+        string Status, int DocumentCount, DateOnly CreatedAt);
 
     private sealed record MatterDocumentDto(Guid FileId, string FileName, string? Note, DateTimeOffset AttachedAt);
 

@@ -30,9 +30,13 @@ public sealed class LegalDbContext(
             b.ToTable("matters");
             b.HasKey(x => x.Id);
             b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.MatterNumber).HasMaxLength(16);
             b.Property(x => x.ClientName).HasMaxLength(200);
+            b.Property(x => x.PracticeArea).HasMaxLength(100);
             b.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
             b.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+            // Docket numbers are unique per tenant; pre-numbering rows stay null (nulls don't collide).
+            b.HasIndex(x => new { x.TenantId, x.MatterNumber }).IsUnique();
             b.HasMany(x => x.Documents).WithOne().HasForeignKey(d => d.MatterId).OnDelete(DeleteBehavior.Cascade);
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });

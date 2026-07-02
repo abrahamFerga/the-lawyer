@@ -112,10 +112,11 @@ public sealed class MatterTools(
                $"Job id: {jobId} (progress at /api/jobs/{jobId}). The review table will be filed on the matter as a PDF when it completes — check list_matter_documents.";
     }
 
-    [Description("Create a new legal matter (an engagement workspace documents and work product attach to).")]
+    [Description("Create a new legal matter (an engagement workspace documents and work product attach to). Assigns the next matter number (YYYY-NNNN) automatically.")]
     public async Task<string> CreateMatter(
         [Description("The matter name, e.g. 'Julia Assange defense' or 'Acme / Initech NDA'.")] string name,
         [Description("Optional client name the matter is for.")] string? clientName = null,
+        [Description("Optional practice area, e.g. 'Litigation' or 'IP'. Must map to the firm's taxonomy.")] string? practiceArea = null,
         CancellationToken cancellationToken = default)
     {
         var trimmed = name.Trim();
@@ -127,7 +128,17 @@ public sealed class MatterTools(
         var existing = await FindMatterAsync(trimmed, cancellationToken);
         if (existing is not null)
         {
-            return $"A matter named '{existing.Name}' already exists (id {existing.Id}). Use it, or pick a different name.";
+            return $"A matter named '{existing.Name}' already exists (number {existing.MatterNumber ?? "n/a"}, id {existing.Id}). Use it, or pick a different name.";
+        }
+
+        string? area = null;
+        if (!string.IsNullOrWhiteSpace(practiceArea))
+        {
+            area = PracticeAreas.Normalize(practiceArea);
+            if (area is null)
+            {
+                return $"'{practiceArea}' is not a recognized practice area. Use one of: {PracticeAreas.Listed}.";
+            }
         }
 
         var matter = new Matter
@@ -135,11 +146,62 @@ public sealed class MatterTools(
             TenantId = tenant.RequireTenantId(),
             Name = trimmed,
             ClientName = string.IsNullOrWhiteSpace(clientName) ? null : clientName.Trim(),
+            PracticeArea = area,
         };
         db.Matters.Add(matter);
-        await db.SaveChangesAsync(cancellationToken);
 
-        return $"Created matter '{matter.Name}'{(matter.ClientName is null ? "" : $" for client {matter.ClientName}")} (id {matter.Id}).";
+        // Number from the tenant's existing numbers; the unique index turns the rare concurrent
+        // clash into one retry with a fresh sequence rather than a duplicate docket number.
+        var year = DateTimeOffset.UtcNow.Year;
+        for (var attempt = 0; ; attempt++)
+        {
+            var existingNumbers = await db.Matters
+                .Where(m => m.MatterNumber != null && m.Id != matter.Id)
+                .Select(m => m.MatterNumber)
+                .ToListAsync(cancellationToken);
+            matter.MatterNumber = MatterNumbering.Format(year, MatterNumbering.NextSequence(existingNumbers, year));
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                break;
+            }
+            catch (DbUpdateException) when (attempt == 0)
+            {
+            }
+        }
+
+        return $"Created matter {matter.MatterNumber} '{matter.Name}'" +
+               $"{(matter.ClientName is null ? "" : $" for client {matter.ClientName}")}" +
+               $"{(matter.PracticeArea is null ? "" : $" ({matter.PracticeArea})")} (id {matter.Id}).";
+    }
+
+    [Description("Change a matter's status: 'open', 'on-hold', or 'closed'. Closing records the close date; reopening clears it. Closed matters refuse new documents until reopened. Side-effecting and requires approval.")]
+    public async Task<string> SetMatterStatus(
+        [Description("The matter name.")] string matterName,
+        [Description("The new status: open, on-hold, or closed.")] string status,
+        CancellationToken cancellationToken = default)
+    {
+        var matter = await FindMatterAsync(matterName, cancellationToken);
+        if (matter is null)
+        {
+            return $"No matter named '{matterName}' exists. Use list_matters to find the right name.";
+        }
+
+        MatterStatus? next = status.Trim().Replace("-", "", StringComparison.Ordinal).ToLowerInvariant() switch
+        {
+            "open" or "reopen" or "reopened" => MatterStatus.Open,
+            "onhold" or "hold" or "paused" => MatterStatus.OnHold,
+            "closed" or "close" => MatterStatus.Closed,
+            _ => null,
+        };
+        if (next is null)
+        {
+            return $"'{status}' is not a matter status. Use 'open', 'on-hold', or 'closed'.";
+        }
+
+        var message = matter.ApplyStatus(next.Value, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+        return message;
     }
 
     [Description("List the tenant's legal matters with their status and document counts.")]
@@ -148,7 +210,11 @@ public sealed class MatterTools(
         // Walls are per-user identity, so filter in memory after the tenant-scoped fetch.
         var matters = (await db.Matters
                 .OrderByDescending(m => m.CreatedAt)
-                .Select(m => new { m.Name, m.ClientName, m.Status, m.RestrictedUserIdsJson, DocumentCount = m.Documents.Count })
+                .Select(m => new
+                {
+                    m.Name, m.MatterNumber, m.ClientName, m.PracticeArea, m.Status,
+                    m.RestrictedUserIdsJson, DocumentCount = m.Documents.Count,
+                })
                 .Take(200)
                 .ToListAsync(cancellationToken))
             .Where(m => Matter.WallAllows(m.RestrictedUserIdsJson, currentUser.UserId))
@@ -163,7 +229,10 @@ public sealed class MatterTools(
         var sb = new StringBuilder("Matters (newest first):\n");
         foreach (var m in matters)
         {
-            sb.AppendLine($"- {m.Name}{(m.ClientName is null ? "" : $" (client: {m.ClientName})")} — {m.Status}, {m.DocumentCount} document(s)");
+            sb.AppendLine(
+                $"- {(m.MatterNumber is null ? "" : $"[{m.MatterNumber}] ")}{m.Name}" +
+                $"{(m.ClientName is null ? "" : $" (client: {m.ClientName})")}" +
+                $"{(m.PracticeArea is null ? "" : $" [{m.PracticeArea}]")} — {m.Status}, {m.DocumentCount} document(s)");
         }
 
         return sb.ToString();
@@ -273,6 +342,11 @@ public sealed class MatterTools(
         if (matter is null)
         {
             return $"No matter named '{matterName}' exists. Create it first with create_matter, or use list_matters to find the right name.";
+        }
+
+        if (matter.Status == MatterStatus.Closed)
+        {
+            return $"Matter '{matter.Name}' is closed (since {matter.ClosedAt:yyyy-MM-dd}). Reopen it with set_matter_status before attaching documents.";
         }
 
         var alreadyAttached = await db.MatterDocuments
