@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using TheLawyer.Api.Auth;
+using TheLawyer.Api.Endpoints;
 using TheLawyer.Api.Middleware;
 using TheLawyer.Infrastructure;
+using TheLawyer.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,23 +17,35 @@ var postgresConn = builder.Configuration.GetConnectionString("postgres")
     ?? throw new InvalidOperationException("Connection string 'postgres' missing. Aspire AppHost should supply it.");
 builder.Services.AddTheLawyerInfrastructure(postgresConn);
 
-// AuthN: JWT Bearer against Entra ID B2C.
+// AuthN: JWT Bearer against Entra ID B2C. In Development ONLY, a symmetric DevJwt signing key
+// (integration tests and local runs mint their own tokens with it) replaces the B2C authority —
+// the key is a committed dev fixture, not a secret, and the branch is unreachable in production.
+var devJwtKey = builder.Configuration["DevJwt:SigningKey"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        if (builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(devJwtKey))
+        {
+            // Keep raw claim names (tenant_id, role, sub) — the default inbound map renames them
+            // to SOAP-era URIs, which breaks the middleware and every RequireClaim("role", ...).
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(devJwtKey)),
+                RoleClaimType = "role",
+                NameClaimType = "sub",
+            };
+            return;
+        }
+
         builder.Configuration.Bind("AzureAdB2C", options);
         // The tenant_id and role custom claims are extracted by TenantResolutionMiddleware.
     });
 
-// AuthZ: policies named <Module>.<Action>. Bound to roles via appsettings.json
-// (e.g. "Rbac:RoleAssignments:firm-admin:[Matters.Open, Trust.Post, ...]").
-// Foundations epic ships one example policy; the rest land with their respective epics.
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Matters.View", policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireClaim("role", "attorney", "paralegal", "firm-admin", "client"));
-});
+// AuthZ: every policy named <Module>.<Action>, bound from Rbac:RoleAssignments (config, not code).
+builder.Services.AddTheLawyerAuthorization(builder.Configuration);
 
 // Idempotency + rate limiting + Problem Details all wired in their own epics; stub for Foundations.
 builder.Services.AddProblemDetails();
@@ -50,6 +66,11 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    // Dev/test schema creation. Production runs migrations as a separate deploy job (ARCH.md,
+    // Data model section) — never inline at startup.
+    using var scope = app.Services.CreateScope();
+    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
 }
 
 app.MapDefaultEndpoints();
@@ -58,5 +79,8 @@ app.MapDefaultEndpoints();
 // Future epics replace this with full endpoint groups (matters, documents, trust, etc.).
 app.MapGet("/api/v1/ping", () => Results.Ok(new { service = "TheLawyer.Api", utcNow = DateTimeOffset.UtcNow }))
    .AllowAnonymous();
+
+// Foundations probes (#11): identity resolution, policy gating, tenant-isolation surface.
+app.MapFoundationProbes();
 
 app.Run();
