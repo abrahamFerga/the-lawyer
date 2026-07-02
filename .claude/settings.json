@@ -22,8 +22,8 @@
   "enabledPlugins": {
     "workflow-core@my-skills": true,
     "system-definition@my-skills": false,
-    "architecture@my-skills": true,
-    "development@my-skills": false,
+    "architecture@my-skills": false,
+    "development@my-skills": true,
     "dotnet@dotnet/skills": true,
     "dotnet-aspnet@dotnet/skills": true,
     "dotnet-data@dotnet/skills": true,
