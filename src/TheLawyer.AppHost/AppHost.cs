@@ -8,7 +8,14 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var postgres = builder.AddPostgres("cortex-pg")
+// STABLE dev password (overridable via Parameters:cortex-pg-password in user-secrets). Postgres
+// bakes the password into the data volume at first init and never re-reads it — with Aspire's
+// default *generated* password, losing/regenerating user-secrets leaves the volume unopenable
+// ("28P01 password authentication failed", the API waits forever, the console shows nothing).
+// A fixed dev default can't drift. Local demo container only — not a production credential.
+var pgPassword = builder.AddParameter("cortex-pg-password", "thelawyer-dev-only", secret: true);
+
+var postgres = builder.AddPostgres("cortex-pg", password: pgPassword)
     // pgvector-enabled Postgres — Cortex's opt-in RAG pipeline needs the vector extension at
     // migration time. pg17 pairs with Aspire's data-volume mount (see the Cortex AppHost notes:
     // a volume created by a different Postgres major needs `docker volume rm` to reset).
