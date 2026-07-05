@@ -15,6 +15,7 @@ public sealed class LegalToolSource : IModuleToolSource
         var clauses = scopedServices.GetRequiredService<LegalTools>();
         var matters = scopedServices.GetRequiredService<MatterTools>();
         var conflicts = scopedServices.GetRequiredService<ConflictTools>();
+        var calendar = scopedServices.GetRequiredService<CalendarTools>();
 
         return
         [
@@ -121,6 +122,28 @@ public sealed class LegalToolSource : IModuleToolSource
                 Name = "list_matter_documents",
                 Permission = Permissions.ForTool(ModuleId, "list_matter_documents"),
                 Function = AIFunctionFactory.Create(matters.ListMatterDocuments, name: "list_matter_documents"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "add_matter_event",
+                Permission = Permissions.ForTool(ModuleId, "add_matter_event"),
+                Function = AIFunctionFactory.Create(calendar.AddMatterEvent, name: "add_matter_event"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_matter_events",
+                Permission = Permissions.ForTool(ModuleId, "list_matter_events"),
+                Function = AIFunctionFactory.Create(calendar.ListMatterEvents, name: "list_matter_events"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_upcoming_events",
+                Permission = Permissions.ForTool(ModuleId, "list_upcoming_events"),
+                Function = AIFunctionFactory.Create(calendar.ListUpcomingEvents, name: "list_upcoming_events"),
             },
             new ModuleTool
             {

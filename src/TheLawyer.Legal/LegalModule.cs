@@ -31,7 +31,7 @@ public sealed class LegalModule : IModule
     {
         Id = Id,
         DisplayName = "Legal",
-        Version = "1.6.0",
+        Version = "1.7.0",
         Description = "Matter-centric legal assistant. Organize case documents into matters, search a clause library, and draft clauses for review.",
         Icon = "scale",
         AgentInstructions =
@@ -44,6 +44,9 @@ public sealed class LegalModule : IModule
             "index_matter_documents when it is not indexed yet. For a single specific file, call read_document with " +
             "its file id. Either way, CITE the file name and id for every claim you take from a document — never " +
             "state document contents without a citation. " +
+            "Track deadlines with the calendar tools: add_matter_event for court deadlines, hearings, and " +
+            "reminders the user mentions; list_upcoming_events is the firm agenda — check it when the user asks " +
+            "what needs attention, and flag OVERDUE items proactively. " +
             "BEFORE opening a matter for a new client or adverse party, run check_conflicts with every " +
             "involved name; after the user decides, freeze the result with attest_conflict_check on the matter " +
             "(record parties with add_matter_party as they become known). " +
@@ -161,6 +164,25 @@ public sealed class LegalModule : IModule
             },
             new ToolDescriptor
             {
+                Name = "add_matter_event",
+                Description = "Add a deadline / hearing / meeting / reminder to a matter's calendar. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "add_matter_event"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "list_matter_events",
+                Description = "List a matter's calendar events with overdue / due-soon markers.",
+                Permission = Permissions.ForTool(Id, "list_matter_events"),
+            },
+            new ToolDescriptor
+            {
+                Name = "list_upcoming_events",
+                Description = "The firm agenda: upcoming events across accessible matters, overdue first-class.",
+                Permission = Permissions.ForTool(Id, "list_upcoming_events"),
+            },
+            new ToolDescriptor
+            {
                 Name = "get_playbook",
                 Description = "Get the firm's contract-review playbook rules with severity.",
                 Permission = Permissions.ForTool(Id, "get_playbook"),
@@ -225,14 +247,25 @@ public sealed class LegalModule : IModule
             },
             new TabDescriptor
             {
-                Id = "clauses", Label = "Clauses", Route = "/legal/clauses", Icon = "file-text", Order = 2,
+                Id = "calendar", Label = "Calendar", Route = "/legal/calendar", Icon = "calendar", Order = 2,
+                Permission = ViewMatters,
+                DataEndpoint = "/api/legal/events",
+                Columns =
+                [
+                    new("startsAt", "When"), new("type", "Type"), new("title", "Event"),
+                    new("matterName", "Matter"), new("urgency", "Urgency"),
+                ],
+            },
+            new TabDescriptor
+            {
+                Id = "clauses", Label = "Clauses", Route = "/legal/clauses", Icon = "file-text", Order = 3,
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/clauses",
                 Columns = [new("title", "Clause"), new("category", "Category"), new("summary", "Summary")],
             },
             new TabDescriptor
             {
-                Id = "playbook", Label = "Playbook", Route = "/legal/playbook", Icon = "shield-check", Order = 3,
+                Id = "playbook", Label = "Playbook", Route = "/legal/playbook", Icon = "shield-check", Order = 4,
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/playbook",
                 Columns = [new("severity", "Severity"), new("title", "Rule"), new("guidance", "Guidance")],
@@ -245,6 +278,7 @@ public sealed class LegalModule : IModule
         services.AddScoped<LegalTools>();
         services.AddScoped<MatterTools>();
         services.AddScoped<ConflictTools>();
+        services.AddScoped<CalendarTools>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 
@@ -463,6 +497,30 @@ public sealed class LegalModule : IModule
             .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
             .WithName("Legal_GetMatters");
 
+        // The firm agenda — drives the Calendar tab. Wall-filtered like the matters list; urgency
+        // is computed server-side so the tab needs no client logic.
+        group.MapGet("/events", async (
+                LegalDbContext db, Cortex.Core.Identity.ICurrentUser current, CancellationToken cancellationToken) =>
+            {
+                var now = DateTimeOffset.UtcNow;
+                var matters = (await db.Matters
+                        .Select(m => new { m.Id, m.Name, m.RestrictedUserIdsJson })
+                        .ToListAsync(cancellationToken))
+                    .Where(m => Matter.WallAllows(m.RestrictedUserIdsJson, current.UserId))
+                    .ToDictionary(m => m.Id, m => m.Name);
+                var events = (await db.MatterEvents
+                        .OrderBy(e => e.StartsAt)
+                        .Take(500)
+                        .ToListAsync(cancellationToken))
+                    .Where(e => matters.ContainsKey(e.MatterId))
+                    .Select(e => new MatterEventDto(
+                        e.Id, e.StartsAt, e.Type, e.Title, matters[e.MatterId],
+                        MatterEvent.UrgencyAt(now, e.StartsAt).ToString(), e.Notes));
+                return Results.Ok(events);
+            })
+            .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
+            .WithName("Legal_GetEvents");
+
         // A matter's attached documents (file ids resolve against /api/files/{id}). Outside the
         // wall, the matter 404s — indistinguishable from missing, like cross-tenant ids.
         group.MapGet("/matters/{matterId:guid}/documents", async (
@@ -491,6 +549,9 @@ public sealed class LegalModule : IModule
         string Status, int DocumentCount, DateOnly CreatedAt);
 
     private sealed record MatterDocumentDto(Guid FileId, string FileName, string? Note, DateTimeOffset AttachedAt);
+
+    private sealed record MatterEventDto(
+        Guid Id, DateTimeOffset StartsAt, string Type, string Title, string MatterName, string Urgency, string? Notes);
 
     private sealed record ClauseDto(Guid Id, string Slug, string Title, string Category, string Summary);
 

@@ -61,7 +61,7 @@ public sealed class LegalCatalogTests
 
         Assert.Equal("legal", manifest.Id);
         Assert.Equal(
-            ["search_clauses", "draft_clause", "save_document_template", "list_document_templates", "draft_from_template", "create_matter", "set_matter_status", "list_matters", "add_matter_party", "check_conflicts", "attest_conflict_check", "list_conflict_attestations", "attach_document_to_matter", "list_matter_documents", "get_playbook", "start_bulk_review", "index_matter_documents", "restrict_matter_access", "open_matter_access", "connect_matter_folder", "sync_matter_folder"],
+            ["search_clauses", "draft_clause", "save_document_template", "list_document_templates", "draft_from_template", "create_matter", "set_matter_status", "list_matters", "add_matter_party", "check_conflicts", "attest_conflict_check", "list_conflict_attestations", "attach_document_to_matter", "list_matter_documents", "add_matter_event", "list_matter_events", "list_upcoming_events", "get_playbook", "start_bulk_review", "index_matter_documents", "restrict_matter_access", "open_matter_access", "connect_matter_folder", "sync_matter_folder"],
             manifest.Tools.Select(t => t.Name));
 
         // The side-effecting matter tools are held for human approval; the read tools are not.
