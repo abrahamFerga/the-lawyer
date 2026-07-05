@@ -4,7 +4,9 @@
 // Zero-config: the chat assistant uses Cortex's dependency-free Mock provider and the RAG
 // pipeline uses the deterministic Mock embedder, so no API keys are required. The web UI ships
 // from the Cortex frontend packages (@cortex/ui, @cortex/admin-ui); until they publish to npm,
-// run them from the Cortex repo with VITE_API_BASE pointed at this API.
+// the AppHost launches them as Vite dev servers straight from a sibling Cortex checkout
+// (default ../Cortex next to this repo; override with "CortexRepoPath" in appsettings or
+// user-secrets). No checkout found → the API still runs, the UI resources are skipped.
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -35,7 +37,7 @@ var aiProvider = builder.AddParameter("ai-provider", "Mock", publishValueAsDefau
 var aiModel = builder.AddParameter("ai-model", "gpt-4o-mini", publishValueAsDefault: true);
 var aiApiKey = builder.AddParameter("ai-api-key", "", secret: true);
 
-builder.AddProject<Projects.TheLawyer_Host>("thelawyer-api")
+var api = builder.AddProject<Projects.TheLawyer_Host>("thelawyer-api")
     .WithReference(platformDb)
     .WithReference(auditDb)
     .WithReference(redis)
@@ -46,4 +48,54 @@ builder.AddProject<Projects.TheLawyer_Host>("thelawyer-api")
     .WithEnvironment("Ai__ApiKey", aiApiKey)
     .WithExternalHttpEndpoints();
 
+// ── Front-ends (Vite dev servers from the Cortex checkout, until @cortex/* publish to npm) ──
+var cortexRepo = Path.GetFullPath(
+    builder.Configuration["CortexRepoPath"] ?? Path.Combine(builder.AppHostDirectory, "..", "..", "..", "Cortex"));
+var workspaceDir = Path.Combine(cortexRepo, "frontend", "cortex-ui");
+var adminDir = Path.Combine(cortexRepo, "frontend", "admin-ui");
+
+if (builder.ExecutionContext.IsRunMode && Directory.Exists(workspaceDir) && ToolExistsOnPath("pnpm"))
+{
+    var workspace = builder.AddViteApp("thelawyer-ui", workspaceDir)
+        .WithPnpm()
+        .WaitFor(api)
+        .WithEnvironment("VITE_API_BASE", api.GetEndpoint("http"))
+        .WithExternalHttpEndpoints();
+
+    var admin = builder.AddViteApp("thelawyer-admin-ui", adminDir)
+        .WithPnpm()
+        .WaitFor(api)
+        .WithEnvironment("VITE_API_BASE", api.GetEndpoint("http"))
+        .WithEnvironment("VITE_WORKSPACE_URL", workspace.GetEndpoint("http"))
+        .WithExternalHttpEndpoints();
+
+    // The workspace's "Admin" link targets the admin console (Vite serves it under its /admin base).
+    workspace.WithEnvironment(
+        "VITE_ADMIN_URL",
+        ReferenceExpression.Create($"{admin.GetEndpoint("http")}/admin"));
+
+    // Teach the API's CORS policy the front-end origins (ports are assigned dynamically); the
+    // fixed localhost ports cover running `pnpm dev` outside Aspire.
+    api.WithEnvironment("Cors__Origins__0", workspace.GetEndpoint("http"))
+       .WithEnvironment("Cors__Origins__1", admin.GetEndpoint("http"))
+       .WithEnvironment("Cors__Origins__2", "http://localhost:5173")
+       .WithEnvironment("Cors__Origins__3", "http://localhost:5174");
+}
+else if (builder.ExecutionContext.IsRunMode)
+{
+    Console.WriteLine(
+        $"[TheLawyer.AppHost] UI resources skipped — Cortex checkout not found at '{cortexRepo}' " +
+        "(set \"CortexRepoPath\") or pnpm is not on PATH (`corepack enable`). The API runs without them.");
+}
+
 builder.Build().Run();
+
+// True when `tool` resolves on PATH (Windows launchers included — pnpm installs as pnpm.cmd).
+static bool ToolExistsOnPath(string tool)
+{
+    var extensions = OperatingSystem.IsWindows() ? new[] { ".cmd", ".exe", ".bat", "" } : new[] { "" };
+    return (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+        .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+        .SelectMany(_ => extensions, (dir, ext) => Path.Combine(dir.Trim('"'), tool + ext))
+        .Any(File.Exists);
+}
