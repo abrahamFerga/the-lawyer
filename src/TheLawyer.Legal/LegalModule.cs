@@ -270,6 +270,7 @@ public sealed class LegalModule : IModule
                 Id = "matters", Label = "Matters", Route = "/legal/matters", Icon = "folder", Order = 1,
                 Permission = ViewMatters,
                 DataEndpoint = "/api/legal/matters",
+                DetailEndpoint = "/api/legal/matters/{id}/detail",
                 Columns =
                 [
                     new("matterNumber", "Number"), new("name", "Matter"), new("clientName", "Client"),
@@ -585,6 +586,95 @@ public sealed class LegalModule : IModule
 
         // A matter's attached documents (file ids resolve against /api/files/{id}). Outside the
         // wall, the matter 404s — indistinguishable from missing, like cross-tenant ids.
+        // The matter's working file as a generic DETAIL DOCUMENT (drill-down from the Matters tab):
+        // parties, upcoming events with urgency, the tamper-evident conflict-check trail, and
+        // documents. Outside the wall it 404s - indistinguishable from missing.
+        group.MapGet("/matters/{matterId:guid}/detail", async (
+                Guid matterId, LegalDbContext db, Cortex.Core.Identity.ICurrentUser current,
+                CancellationToken cancellationToken) =>
+            {
+                var matter = await db.Matters.FirstOrDefaultAsync(m => m.Id == matterId, cancellationToken);
+                if (matter is null || !matter.IsAccessibleTo(current.UserId))
+                {
+                    return Results.NotFound();
+                }
+
+                var now = DateTimeOffset.UtcNow;
+                var parties = await db.MatterParties.Where(p => p.MatterId == matterId)
+                    .OrderBy(p => p.Role).ThenBy(p => p.Name).Take(50).ToListAsync(cancellationToken);
+                var events = await db.MatterEvents.Where(e => e.MatterId == matterId && e.StartsAt >= now.AddDays(-7))
+                    .OrderBy(e => e.StartsAt).Take(20).ToListAsync(cancellationToken);
+                var attestations = await db.ConflictAttestations.Where(a => a.MatterId == matterId)
+                    .OrderByDescending(a => a.PerformedAt).Take(10).ToListAsync(cancellationToken);
+                var documents = await db.MatterDocuments.Where(d => d.MatterId == matterId)
+                    .OrderByDescending(d => d.CreatedAt).Take(20).ToListAsync(cancellationToken);
+
+                var sections = new List<object>
+                {
+                    new
+                    {
+                        heading = "Parties",
+                        columns = new[] { new { field = "name", header = "Name" }, new { field = "role", header = "Role" } },
+                        rows = (object)parties.Select(p => new { name = p.Name, role = p.Role }).ToArray(),
+                    },
+                    new
+                    {
+                        heading = "Calendar (last week and upcoming)",
+                        columns = new[]
+                        {
+                            new { field = "startsAt", header = "When" }, new { field = "type", header = "Type" },
+                            new { field = "title", header = "Event" }, new { field = "urgency", header = "Urgency" },
+                        },
+                        rows = (object)events.Select(e => new
+                        {
+                            startsAt = e.StartsAt.ToString("yyyy-MM-dd HH:mm"),
+                            type = e.Type,
+                            title = e.Title,
+                            urgency = MatterEvent.UrgencyAt(now, e.StartsAt).ToString(),
+                        }).ToArray(),
+                    },
+                    new
+                    {
+                        heading = "Conflict checks (tamper-evident trail)",
+                        columns = new[]
+                        {
+                            new { field = "performedAt", header = "When" }, new { field = "terms", header = "Searched" },
+                            new { field = "hash", header = "Attestation" },
+                        },
+                        rows = (object)attestations.Select(a => new
+                        {
+                            performedAt = a.PerformedAt.ToString("yyyy-MM-dd HH:mm"),
+                            terms = string.Join(", ", System.Text.Json.JsonSerializer.Deserialize<string[]>(a.SearchTermsJson) ?? []),
+                            hash = a.AttestationHash[..Math.Min(12, a.AttestationHash.Length)] + "...",
+                        }).ToArray(),
+                    },
+                    new
+                    {
+                        heading = "Documents",
+                        columns = new[]
+                        {
+                            new { field = "fileName", header = "File" }, new { field = "note", header = "Note" },
+                            new { field = "attachedAt", header = "Attached" },
+                        },
+                        rows = (object)documents.Select(d => new
+                        {
+                            fileName = d.FileName, note = d.Note, attachedAt = d.CreatedAt.ToString("yyyy-MM-dd"),
+                        }).ToArray(),
+                    },
+                };
+
+                return Results.Ok(new
+                {
+                    title = $"{(matter.MatterNumber is null ? "" : matter.MatterNumber + " - ")}{matter.Name}",
+                    subtitle = $"{matter.Status}{(matter.ClientName is null ? "" : $" - Client: {matter.ClientName}")}" +
+                               $"{(matter.PracticeArea is null ? "" : $" - {matter.PracticeArea}")}" +
+                               (matter.RestrictedUserIdsJson is null ? "" : " - RESTRICTED (ethical wall)"),
+                    sections,
+                });
+            })
+            .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
+            .WithName("Legal_GetMatterDetail");
+
         group.MapGet("/matters/{matterId:guid}/documents", async (
                 Guid matterId, LegalDbContext db, Cortex.Core.Identity.ICurrentUser current,
                 CancellationToken cancellationToken) =>
