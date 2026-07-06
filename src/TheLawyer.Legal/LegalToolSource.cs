@@ -15,6 +15,7 @@ public sealed class LegalToolSource : IModuleToolSource
         var clauses = scopedServices.GetRequiredService<LegalTools>();
         var matters = scopedServices.GetRequiredService<MatterTools>();
         var conflicts = scopedServices.GetRequiredService<ConflictTools>();
+        var calendar = scopedServices.GetRequiredService<CalendarTools>();
 
         return
         [
@@ -31,6 +32,28 @@ public sealed class LegalToolSource : IModuleToolSource
                 Name = "draft_clause",
                 Permission = Permissions.ForTool(ModuleId, "draft_clause"),
                 Function = AIFunctionFactory.Create(clauses.DraftClause, name: "draft_clause"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "save_document_template",
+                Permission = Permissions.ForTool(ModuleId, "save_document_template"),
+                Function = AIFunctionFactory.Create(clauses.SaveDocumentTemplate, name: "save_document_template"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_document_templates",
+                Permission = Permissions.ForTool(ModuleId, "list_document_templates"),
+                Function = AIFunctionFactory.Create(clauses.ListDocumentTemplates, name: "list_document_templates"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "draft_from_template",
+                Permission = Permissions.ForTool(ModuleId, "draft_from_template"),
+                Function = AIFunctionFactory.Create(clauses.DraftFromTemplate, name: "draft_from_template"),
             },
             new ModuleTool
             {
@@ -103,9 +126,63 @@ public sealed class LegalToolSource : IModuleToolSource
             new ModuleTool
             {
                 ModuleId = ModuleId,
+                Name = "add_matter_event",
+                Permission = Permissions.ForTool(ModuleId, "add_matter_event"),
+                Function = AIFunctionFactory.Create(calendar.AddMatterEvent, name: "add_matter_event"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_matter_events",
+                Permission = Permissions.ForTool(ModuleId, "list_matter_events"),
+                Function = AIFunctionFactory.Create(calendar.ListMatterEvents, name: "list_matter_events"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_upcoming_events",
+                Permission = Permissions.ForTool(ModuleId, "list_upcoming_events"),
+                Function = AIFunctionFactory.Create(calendar.ListUpcomingEvents, name: "list_upcoming_events"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
                 Name = "get_playbook",
                 Permission = Permissions.ForTool(ModuleId, "get_playbook"),
                 Function = AIFunctionFactory.Create(clauses.GetPlaybook, name: "get_playbook"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "save_clause",
+                Permission = Permissions.ForTool(ModuleId, "save_clause"),
+                Function = AIFunctionFactory.Create(clauses.SaveClause, name: "save_clause"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "remove_clause",
+                Permission = Permissions.ForTool(ModuleId, "remove_clause"),
+                Function = AIFunctionFactory.Create(clauses.RemoveClause, name: "remove_clause"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "add_playbook_rule",
+                Permission = Permissions.ForTool(ModuleId, "add_playbook_rule"),
+                Function = AIFunctionFactory.Create(clauses.AddPlaybookRule, name: "add_playbook_rule"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "remove_playbook_rule",
+                Permission = Permissions.ForTool(ModuleId, "remove_playbook_rule"),
+                Function = AIFunctionFactory.Create(clauses.RemovePlaybookRule, name: "remove_playbook_rule"),
+                RequiresApproval = true,
             },
             new ModuleTool
             {

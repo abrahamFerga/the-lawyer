@@ -31,7 +31,7 @@ public sealed class LegalModule : IModule
     {
         Id = Id,
         DisplayName = "Legal",
-        Version = "1.5.0",
+        Version = "1.8.0",
         Description = "Matter-centric legal assistant. Organize case documents into matters, search a clause library, and draft clauses for review.",
         Icon = "scale",
         AgentInstructions =
@@ -44,13 +44,22 @@ public sealed class LegalModule : IModule
             "index_matter_documents when it is not indexed yet. For a single specific file, call read_document with " +
             "its file id. Either way, CITE the file name and id for every claim you take from a document — never " +
             "state document contents without a citation. " +
+            "Track deadlines with the calendar tools: add_matter_event for court deadlines, hearings, and " +
+            "reminders the user mentions; list_upcoming_events is the firm agenda — check it when the user asks " +
+            "what needs attention, and flag OVERDUE items proactively. " +
             "BEFORE opening a matter for a new client or adverse party, run check_conflicts with every " +
             "involved name; after the user decides, freeze the result with attest_conflict_check on the matter " +
             "(record parties with add_matter_party as they become known). " +
-            "Use search_clauses / draft_clause for clause work (the firm's own curated library). To deliver a draft as " +
-            "work product, chain the tools: draft_clause, then generate_pdf with the drafted text, then " +
+            "Use search_clauses / draft_clause for clause work (the firm's own curated library); for a full document " +
+            "(an NDA, a consulting agreement) use draft_from_template (see list_document_templates; curate with " +
+            "save_document_template). To deliver a draft as " +
+            "work product, chain the tools: draft_clause or draft_from_template, then generate_pdf with the drafted text, then " +
             "attach_document_to_matter with the returned file id. When reviewing a contract, first call get_playbook " +
-            "and check the document against every rule, citing the file for each finding. Always make clear that " +
+            "and check the document against every rule, citing the file for each finding. " +
+            "LIBRARY CURATION: administrators refine the firm's standards from chat — save_clause / remove_clause " +
+            "for the clause library and add_playbook_rule / remove_playbook_rule for the review playbook; every " +
+            "change immediately affects future drafting and reviews, so confirm the exact wording before saving. " +
+            "Always make clear that " +
             "output is a starting template, not legal advice, and recommend review by a licensed attorney. Never " +
             "invent statutes, case citations, or jurisdiction-specific rules; if asked for those, say a qualified " +
             "lawyer must confirm them.",
@@ -78,6 +87,25 @@ public sealed class LegalModule : IModule
                 Name = "draft_clause",
                 Description = "Draft a standard contract clause filled in with the two party names.",
                 Permission = Permissions.ForTool(Id, "draft_clause"),
+            },
+            new ToolDescriptor
+            {
+                Name = "save_document_template",
+                Description = "Save a reusable document template (ordered clause types assembled by draft_from_template). Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "save_document_template"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "list_document_templates",
+                Description = "List the firm's document templates and the clauses each assembles.",
+                Permission = Permissions.ForTool(Id, "list_document_templates"),
+            },
+            new ToolDescriptor
+            {
+                Name = "draft_from_template",
+                Description = "Assemble a full document draft from a saved template with the party names filled in.",
+                Permission = Permissions.ForTool(Id, "draft_from_template"),
             },
             new ToolDescriptor
             {
@@ -140,9 +168,56 @@ public sealed class LegalModule : IModule
             },
             new ToolDescriptor
             {
+                Name = "add_matter_event",
+                Description = "Add a deadline / hearing / meeting / reminder to a matter's calendar. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "add_matter_event"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "list_matter_events",
+                Description = "List a matter's calendar events with overdue / due-soon markers.",
+                Permission = Permissions.ForTool(Id, "list_matter_events"),
+            },
+            new ToolDescriptor
+            {
+                Name = "list_upcoming_events",
+                Description = "The firm agenda: upcoming events across accessible matters, overdue first-class.",
+                Permission = Permissions.ForTool(Id, "list_upcoming_events"),
+            },
+            new ToolDescriptor
+            {
                 Name = "get_playbook",
                 Description = "Get the firm's contract-review playbook rules with severity.",
                 Permission = Permissions.ForTool(Id, "get_playbook"),
+            },
+            new ToolDescriptor
+            {
+                Name = "save_clause",
+                Description = "Add or replace a clause in the firm's library (curation). Side-effecting: writes firm standards and requires human approval.",
+                Permission = Permissions.ForTool(Id, "save_clause"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "remove_clause",
+                Description = "Remove a clause from the firm's library; refused while a document template references it. Side-effecting and requires human approval.",
+                Permission = Permissions.ForTool(Id, "remove_clause"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "add_playbook_rule",
+                Description = "Add a rule to the firm's contract-review playbook. Side-effecting: changes the review standard and requires human approval.",
+                Permission = Permissions.ForTool(Id, "add_playbook_rule"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "remove_playbook_rule",
+                Description = "Remove a playbook rule by title. Side-effecting and requires human approval.",
+                Permission = Permissions.ForTool(Id, "remove_playbook_rule"),
+                RequiresApproval = true,
             },
             new ToolDescriptor
             {
@@ -195,6 +270,7 @@ public sealed class LegalModule : IModule
                 Id = "matters", Label = "Matters", Route = "/legal/matters", Icon = "folder", Order = 1,
                 Permission = ViewMatters,
                 DataEndpoint = "/api/legal/matters",
+                DetailEndpoint = "/api/legal/matters/{id}/detail",
                 Columns =
                 [
                     new("matterNumber", "Number"), new("name", "Matter"), new("clientName", "Client"),
@@ -204,17 +280,58 @@ public sealed class LegalModule : IModule
             },
             new TabDescriptor
             {
-                Id = "clauses", Label = "Clauses", Route = "/legal/clauses", Icon = "file-text", Order = 2,
-                Permission = ViewClauses,
-                DataEndpoint = "/api/legal/clauses",
-                Columns = [new("title", "Clause"), new("category", "Category"), new("summary", "Summary")],
+                Id = "calendar", Label = "Calendar", Route = "/legal/calendar", Icon = "calendar", Order = 2,
+                Permission = ViewMatters,
+                DataEndpoint = "/api/legal/events",
+                Columns =
+                [
+                    new("startsAt", "When"), new("type", "Type"), new("title", "Event"),
+                    new("matterName", "Matter"), new("urgency", "Urgency"),
+                ],
             },
             new TabDescriptor
             {
-                Id = "playbook", Label = "Playbook", Route = "/legal/playbook", Icon = "shield-check", Order = 3,
+                Id = "clauses", Label = "Clauses", Route = "/legal/clauses", Icon = "file-text", Order = 3,
+                Permission = ViewClauses,
+                DataEndpoint = "/api/legal/clauses",
+                Columns = [new("title", "Clause"), new("category", "Category"), new("summary", "Summary")],
+                // Librarians edit the firm's precedent right in the table (permission-gated both
+                // in the payload and on the endpoints); everyone else sees it read-only.
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/clauses",
+                    DeleteEndpoint = "/api/legal/clauses/{slug}",
+                    Permission = ManageLibrary,
+                    KeyField = "slug",
+                    Fields =
+                    [
+                        new("slug", "Type (stable id, e.g. data-protection)"),
+                        new("title", "Title"),
+                        new("category", "Category"),
+                        new("summary", "Summary"),
+                        new("template", "Clause text ({PartyA}/{PartyB} placeholders)", Multiline: true),
+                    ],
+                },
+            },
+            new TabDescriptor
+            {
+                Id = "playbook", Label = "Playbook", Route = "/legal/playbook", Icon = "shield-check", Order = 4,
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/playbook",
                 Columns = [new("severity", "Severity"), new("title", "Rule"), new("guidance", "Guidance")],
+                // Rules are add/delete (the endpoint has no upsert identity) - edit = remove + add.
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/playbook",
+                    DeleteEndpoint = "/api/legal/playbook/{id}",
+                    Permission = ManageLibrary,
+                    Fields =
+                    [
+                        new("title", "Rule"),
+                        new("guidance", "Guidance (what to check, what to flag)", Multiline: true),
+                        new("severity", "Severity (info / caution / critical)"),
+                    ],
+                },
             },
         ],
     };
@@ -224,6 +341,7 @@ public sealed class LegalModule : IModule
         services.AddScoped<LegalTools>();
         services.AddScoped<MatterTools>();
         services.AddScoped<ConflictTools>();
+        services.AddScoped<CalendarTools>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 
@@ -279,6 +397,19 @@ public sealed class LegalModule : IModule
             }
         }
 
+        if (!await db.DocumentTemplates.AnyAsync(cancellationToken))
+        {
+            // One working template out of the box, so draft_from_template demos immediately; the
+            // clause slugs reference the seeded library above.
+            db.DocumentTemplates.Add(new DocumentTemplate
+            {
+                TenantId = tenantId,
+                Name = "mutual-nda",
+                Title = "Mutual Non-Disclosure Agreement between {PartyA} and {PartyB}",
+                ClauseSlugsJson = """["confidentiality","termination","governing-law"]""",
+            });
+        }
+
         if (!await db.PlaybookRules.AnyAsync(cancellationToken))
         {
             foreach (var (title, guidance, severity) in LegalCatalog.DefaultPlaybook)
@@ -307,7 +438,7 @@ public sealed class LegalModule : IModule
                 var selected = string.IsNullOrWhiteSpace(query)
                     ? clauses
                     : LegalCatalog.Search(clauses, query, c => [c.Title, c.Category, c.Summary, c.Slug]);
-                return Results.Ok(selected.Select(c => new ClauseDto(c.Id, c.Slug, c.Title, c.Category, c.Summary)));
+                return Results.Ok(selected.Select(c => new ClauseDto(c.Id, c.Slug, c.Title, c.Category, c.Summary, c.Template)));
             })
             .RequireAuthorization(PermissionRequirement.PolicyName(ViewClauses))
             .WithName("Legal_GetClauses");
@@ -340,7 +471,7 @@ public sealed class LegalModule : IModule
                 }
 
                 await db.SaveChangesAsync(cancellationToken);
-                return Results.Ok(new ClauseDto(existing.Id, existing.Slug, existing.Title, existing.Category, existing.Summary));
+                return Results.Ok(new ClauseDto(existing.Id, existing.Slug, existing.Title, existing.Category, existing.Summary, existing.Template));
             })
             .RequireAuthorization(PermissionRequirement.PolicyName(ManageLibrary))
             .WithName("Legal_UpsertClause");
@@ -429,8 +560,121 @@ public sealed class LegalModule : IModule
             .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
             .WithName("Legal_GetMatters");
 
+        // The firm agenda — drives the Calendar tab. Wall-filtered like the matters list; urgency
+        // is computed server-side so the tab needs no client logic.
+        group.MapGet("/events", async (
+                LegalDbContext db, Cortex.Core.Identity.ICurrentUser current, CancellationToken cancellationToken) =>
+            {
+                var now = DateTimeOffset.UtcNow;
+                var matters = (await db.Matters
+                        .Select(m => new { m.Id, m.Name, m.RestrictedUserIdsJson })
+                        .ToListAsync(cancellationToken))
+                    .Where(m => Matter.WallAllows(m.RestrictedUserIdsJson, current.UserId))
+                    .ToDictionary(m => m.Id, m => m.Name);
+                var events = (await db.MatterEvents
+                        .OrderBy(e => e.StartsAt)
+                        .Take(500)
+                        .ToListAsync(cancellationToken))
+                    .Where(e => matters.ContainsKey(e.MatterId))
+                    .Select(e => new MatterEventDto(
+                        e.Id, e.StartsAt, e.Type, e.Title, matters[e.MatterId],
+                        MatterEvent.UrgencyAt(now, e.StartsAt).ToString(), e.Notes));
+                return Results.Ok(events);
+            })
+            .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
+            .WithName("Legal_GetEvents");
+
         // A matter's attached documents (file ids resolve against /api/files/{id}). Outside the
         // wall, the matter 404s — indistinguishable from missing, like cross-tenant ids.
+        // The matter's working file as a generic DETAIL DOCUMENT (drill-down from the Matters tab):
+        // parties, upcoming events with urgency, the tamper-evident conflict-check trail, and
+        // documents. Outside the wall it 404s - indistinguishable from missing.
+        group.MapGet("/matters/{matterId:guid}/detail", async (
+                Guid matterId, LegalDbContext db, Cortex.Core.Identity.ICurrentUser current,
+                CancellationToken cancellationToken) =>
+            {
+                var matter = await db.Matters.FirstOrDefaultAsync(m => m.Id == matterId, cancellationToken);
+                if (matter is null || !matter.IsAccessibleTo(current.UserId))
+                {
+                    return Results.NotFound();
+                }
+
+                var now = DateTimeOffset.UtcNow;
+                var parties = await db.MatterParties.Where(p => p.MatterId == matterId)
+                    .OrderBy(p => p.Role).ThenBy(p => p.Name).Take(50).ToListAsync(cancellationToken);
+                var events = await db.MatterEvents.Where(e => e.MatterId == matterId && e.StartsAt >= now.AddDays(-7))
+                    .OrderBy(e => e.StartsAt).Take(20).ToListAsync(cancellationToken);
+                var attestations = await db.ConflictAttestations.Where(a => a.MatterId == matterId)
+                    .OrderByDescending(a => a.PerformedAt).Take(10).ToListAsync(cancellationToken);
+                var documents = await db.MatterDocuments.Where(d => d.MatterId == matterId)
+                    .OrderByDescending(d => d.CreatedAt).Take(20).ToListAsync(cancellationToken);
+
+                var sections = new List<object>
+                {
+                    new
+                    {
+                        heading = "Parties",
+                        columns = new[] { new { field = "name", header = "Name" }, new { field = "role", header = "Role" } },
+                        rows = (object)parties.Select(p => new { name = p.Name, role = p.Role }).ToArray(),
+                    },
+                    new
+                    {
+                        heading = "Calendar (last week and upcoming)",
+                        columns = new[]
+                        {
+                            new { field = "startsAt", header = "When" }, new { field = "type", header = "Type" },
+                            new { field = "title", header = "Event" }, new { field = "urgency", header = "Urgency" },
+                        },
+                        rows = (object)events.Select(e => new
+                        {
+                            startsAt = e.StartsAt.ToString("yyyy-MM-dd HH:mm"),
+                            type = e.Type,
+                            title = e.Title,
+                            urgency = MatterEvent.UrgencyAt(now, e.StartsAt).ToString(),
+                        }).ToArray(),
+                    },
+                    new
+                    {
+                        heading = "Conflict checks (tamper-evident trail)",
+                        columns = new[]
+                        {
+                            new { field = "performedAt", header = "When" }, new { field = "terms", header = "Searched" },
+                            new { field = "hash", header = "Attestation" },
+                        },
+                        rows = (object)attestations.Select(a => new
+                        {
+                            performedAt = a.PerformedAt.ToString("yyyy-MM-dd HH:mm"),
+                            terms = string.Join(", ", System.Text.Json.JsonSerializer.Deserialize<string[]>(a.SearchTermsJson) ?? []),
+                            hash = a.AttestationHash[..Math.Min(12, a.AttestationHash.Length)] + "...",
+                        }).ToArray(),
+                    },
+                    new
+                    {
+                        heading = "Documents",
+                        columns = new[]
+                        {
+                            new { field = "fileName", header = "File" }, new { field = "note", header = "Note" },
+                            new { field = "attachedAt", header = "Attached" },
+                        },
+                        rows = (object)documents.Select(d => new
+                        {
+                            fileName = d.FileName, note = d.Note, attachedAt = d.CreatedAt.ToString("yyyy-MM-dd"),
+                        }).ToArray(),
+                    },
+                };
+
+                return Results.Ok(new
+                {
+                    title = $"{(matter.MatterNumber is null ? "" : matter.MatterNumber + " - ")}{matter.Name}",
+                    subtitle = $"{matter.Status}{(matter.ClientName is null ? "" : $" - Client: {matter.ClientName}")}" +
+                               $"{(matter.PracticeArea is null ? "" : $" - {matter.PracticeArea}")}" +
+                               (matter.RestrictedUserIdsJson is null ? "" : " - RESTRICTED (ethical wall)"),
+                    sections,
+                });
+            })
+            .RequireAuthorization(PermissionRequirement.PolicyName(ViewMatters))
+            .WithName("Legal_GetMatterDetail");
+
         group.MapGet("/matters/{matterId:guid}/documents", async (
                 Guid matterId, LegalDbContext db, Cortex.Core.Identity.ICurrentUser current,
                 CancellationToken cancellationToken) =>
@@ -458,7 +702,10 @@ public sealed class LegalModule : IModule
 
     private sealed record MatterDocumentDto(Guid FileId, string FileName, string? Note, DateTimeOffset AttachedAt);
 
-    private sealed record ClauseDto(Guid Id, string Slug, string Title, string Category, string Summary);
+    private sealed record MatterEventDto(
+        Guid Id, DateTimeOffset StartsAt, string Type, string Title, string MatterName, string Urgency, string? Notes);
+
+    private sealed record ClauseDto(Guid Id, string Slug, string Title, string Category, string Summary, string Template);
 
     /// <summary>Create or update a clause in the firm's library (matched by slug).</summary>
     public sealed record UpsertClauseRequest(string Slug, string Title, string Category, string Summary, string Template);
