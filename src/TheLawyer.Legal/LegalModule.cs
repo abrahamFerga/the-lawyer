@@ -294,6 +294,23 @@ public sealed class LegalModule : IModule
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/clauses",
                 Columns = [new("title", "Clause"), new("category", "Category"), new("summary", "Summary")],
+                // Librarians edit the firm's precedent right in the table (permission-gated both
+                // in the payload and on the endpoints); everyone else sees it read-only.
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/clauses",
+                    DeleteEndpoint = "/api/legal/clauses/{slug}",
+                    Permission = ManageLibrary,
+                    KeyField = "slug",
+                    Fields =
+                    [
+                        new("slug", "Type (stable id, e.g. data-protection)"),
+                        new("title", "Title"),
+                        new("category", "Category"),
+                        new("summary", "Summary"),
+                        new("template", "Clause text ({PartyA}/{PartyB} placeholders)", Multiline: true),
+                    ],
+                },
             },
             new TabDescriptor
             {
@@ -301,6 +318,19 @@ public sealed class LegalModule : IModule
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/playbook",
                 Columns = [new("severity", "Severity"), new("title", "Rule"), new("guidance", "Guidance")],
+                // Rules are add/delete (the endpoint has no upsert identity) - edit = remove + add.
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/playbook",
+                    DeleteEndpoint = "/api/legal/playbook/{id}",
+                    Permission = ManageLibrary,
+                    Fields =
+                    [
+                        new("title", "Rule"),
+                        new("guidance", "Guidance (what to check, what to flag)", Multiline: true),
+                        new("severity", "Severity (info / caution / critical)"),
+                    ],
+                },
             },
         ],
     };
@@ -407,7 +437,7 @@ public sealed class LegalModule : IModule
                 var selected = string.IsNullOrWhiteSpace(query)
                     ? clauses
                     : LegalCatalog.Search(clauses, query, c => [c.Title, c.Category, c.Summary, c.Slug]);
-                return Results.Ok(selected.Select(c => new ClauseDto(c.Id, c.Slug, c.Title, c.Category, c.Summary)));
+                return Results.Ok(selected.Select(c => new ClauseDto(c.Id, c.Slug, c.Title, c.Category, c.Summary, c.Template)));
             })
             .RequireAuthorization(PermissionRequirement.PolicyName(ViewClauses))
             .WithName("Legal_GetClauses");
@@ -440,7 +470,7 @@ public sealed class LegalModule : IModule
                 }
 
                 await db.SaveChangesAsync(cancellationToken);
-                return Results.Ok(new ClauseDto(existing.Id, existing.Slug, existing.Title, existing.Category, existing.Summary));
+                return Results.Ok(new ClauseDto(existing.Id, existing.Slug, existing.Title, existing.Category, existing.Summary, existing.Template));
             })
             .RequireAuthorization(PermissionRequirement.PolicyName(ManageLibrary))
             .WithName("Legal_UpsertClause");
@@ -585,7 +615,7 @@ public sealed class LegalModule : IModule
     private sealed record MatterEventDto(
         Guid Id, DateTimeOffset StartsAt, string Type, string Title, string MatterName, string Urgency, string? Notes);
 
-    private sealed record ClauseDto(Guid Id, string Slug, string Title, string Category, string Summary);
+    private sealed record ClauseDto(Guid Id, string Slug, string Title, string Category, string Summary, string Template);
 
     /// <summary>Create or update a clause in the firm's library (matched by slug).</summary>
     public sealed record UpsertClauseRequest(string Slug, string Title, string Category, string Summary, string Template);
