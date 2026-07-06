@@ -18,7 +18,11 @@ public sealed class LegalDbContext(
 
     public DbSet<Matter> Matters => Set<Matter>();
     public DbSet<MatterDocument> MatterDocuments => Set<MatterDocument>();
+    public DbSet<MatterParty> MatterParties => Set<MatterParty>();
+    public DbSet<MatterEvent> MatterEvents => Set<MatterEvent>();
+    public DbSet<ConflictAttestation> ConflictAttestations => Set<ConflictAttestation>();
     public DbSet<TenantClause> Clauses => Set<TenantClause>();
+    public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
     public DbSet<PlaybookRule> PlaybookRules => Set<PlaybookRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -52,6 +56,43 @@ public sealed class LegalDbContext(
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });
 
+        modelBuilder.Entity<MatterParty>(b =>
+        {
+            b.ToTable("matter_parties");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Role).HasMaxLength(16).IsRequired();
+            b.HasIndex(x => x.MatterId);
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<MatterEvent>(b =>
+        {
+            b.ToTable("matter_events");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            b.Property(x => x.Type).HasMaxLength(16).IsRequired();
+            b.Property(x => x.Notes).HasMaxLength(1000);
+            b.HasIndex(x => new { x.TenantId, x.StartsAt });
+            b.HasIndex(x => x.MatterId);
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<ConflictAttestation>(b =>
+        {
+            b.ToTable("conflict_attestations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SearchTermsJson).IsRequired();
+            b.Property(x => x.DataSnapshotJson).IsRequired();
+            b.Property(x => x.PriorAttestationHash).HasMaxLength(64);
+            b.Property(x => x.AttestationHash).HasMaxLength(64).IsRequired();
+            b.HasIndex(x => new { x.MatterId, x.PerformedAt });
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
         modelBuilder.Entity<TenantClause>(b =>
         {
             b.ToTable("clauses");
@@ -62,6 +103,17 @@ public sealed class LegalDbContext(
             b.Property(x => x.Summary).HasMaxLength(500).IsRequired();
             b.Property(x => x.Template).IsRequired();
             b.HasIndex(x => new { x.TenantId, x.Slug }).IsUnique();
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<DocumentTemplate>(b =>
+        {
+            b.ToTable("document_templates");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            b.Property(x => x.ClauseSlugsJson).IsRequired();
+            b.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });
 
