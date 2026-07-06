@@ -180,6 +180,123 @@ public sealed class LegalTools(LegalDbContext db, ITenantContext tenant)
         return sb.ToString();
     }
 
+    [Description("Save (add or replace) a clause in the firm's library. Curating the library is how drafting reflects the firm's own precedent — use {PartyA}/{PartyB} placeholders in the template. Side-effecting and requires approval.")]
+    public async Task<string> SaveClause(
+        [Description("The clause's stable type/name, e.g. 'confidentiality' or 'data protection'.")] string clauseType,
+        [Description("Display title, e.g. 'Data Protection'.")] string title,
+        [Description("Category, e.g. 'Protection', 'Risk allocation', 'Commercial'.")] string category,
+        [Description("One-sentence summary of what the clause does.")] string summary,
+        [Description("The clause text; {PartyA} and {PartyB} are substituted at draft time.")] string template,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = LibraryCuration.Slugify(clauseType);
+        if (slug.Length == 0 || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(template))
+        {
+            return "A clause needs a type/name, a title, and the clause text.";
+        }
+
+        var existing = await db.Clauses.FirstOrDefaultAsync(c => c.Slug == slug, cancellationToken);
+        if (existing is null)
+        {
+            db.Clauses.Add(new TenantClause
+            {
+                TenantId = tenant.RequireTenantId(),
+                Slug = slug,
+                Title = title.Trim(),
+                Category = string.IsNullOrWhiteSpace(category) ? "General" : category.Trim(),
+                Summary = string.IsNullOrWhiteSpace(summary) ? title.Trim() : summary.Trim(),
+                Template = template.Trim(),
+            });
+        }
+        else
+        {
+            existing.Title = title.Trim();
+            existing.Category = string.IsNullOrWhiteSpace(category) ? existing.Category : category.Trim();
+            existing.Summary = string.IsNullOrWhiteSpace(summary) ? existing.Summary : summary.Trim();
+            existing.Template = template.Trim();
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        var placeholders = template.Contains("{PartyA}", StringComparison.Ordinal) || template.Contains("{PartyB}", StringComparison.Ordinal)
+            ? ""
+            : " Note: the template has no {PartyA}/{PartyB} placeholders, so drafts won't substitute party names.";
+        return $"{(existing is null ? "Added" : "Updated")} clause '{title.Trim()}' ('{slug}') in the firm's library." +
+               $" Every document template that references '{slug}' now uses this text.{placeholders}";
+    }
+
+    [Description("Remove a clause from the firm's library. Refused while any document template still references it — update those templates first.")]
+    public async Task<string> RemoveClause(
+        [Description("The clause type/name as shown by search_clauses (e.g. 'non-compete').")] string clauseType,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = LibraryCuration.Slugify(clauseType);
+        var clause = await db.Clauses.FirstOrDefaultAsync(c => c.Slug == slug, cancellationToken);
+        if (clause is null)
+        {
+            return $"No clause '{slug}' exists in the library. Use search_clauses to find the exact type.";
+        }
+
+        // Templates reference clauses by slug — removing a referenced clause would silently break
+        // every draft assembled from those templates.
+        var templates = await db.DocumentTemplates.ToListAsync(cancellationToken);
+        var referencing = LibraryCuration.TemplatesReferencing(slug, templates.Select(t => (t.Name, t.ClauseSlugsJson)));
+        if (referencing.Count > 0)
+        {
+            return $"CANNOT REMOVE '{slug}': document template(s) still reference it: {string.Join(", ", referencing)}. " +
+                   "Update those templates (save_document_template) first.";
+        }
+
+        db.Clauses.Remove(clause);
+        await db.SaveChangesAsync(cancellationToken);
+        return $"Removed clause '{clause.Title}' ('{slug}') from the firm's library.";
+    }
+
+    [Description("Add a rule to the firm's contract-review playbook — what reviews check contracts against. Side-effecting and requires approval.")]
+    public async Task<string> AddPlaybookRule(
+        [Description("Short rule title, e.g. 'Uncapped liability'.")] string title,
+        [Description("What to check and what to flag, written for the reviewing agent.")] string guidance,
+        [Description("Severity: info, caution, or critical.")] string severity = "caution",
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(guidance))
+        {
+            return "A playbook rule needs a title and guidance.";
+        }
+
+        if (!Enum.TryParse<RuleSeverity>(severity, ignoreCase: true, out var parsed))
+        {
+            return $"'{severity}' is not a severity — use info, caution, or critical.";
+        }
+
+        db.PlaybookRules.Add(new PlaybookRule
+        {
+            TenantId = tenant.RequireTenantId(),
+            Title = title.Trim(),
+            Guidance = guidance.Trim(),
+            Severity = parsed,
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        return $"Added [{parsed}] playbook rule '{title.Trim()}'. Every future contract review checks against it.";
+    }
+
+    [Description("Remove a rule from the firm's contract-review playbook by its title.")]
+    public async Task<string> RemovePlaybookRule(
+        [Description("The rule title as shown by get_playbook.")] string title,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = title.Trim();
+        var rule = await db.PlaybookRules.FirstOrDefaultAsync(
+            r => EF.Functions.ILike(r.Title, normalized), cancellationToken);
+        if (rule is null)
+        {
+            return $"No playbook rule titled '{normalized}'. Check get_playbook for the exact title.";
+        }
+
+        db.PlaybookRules.Remove(rule);
+        await db.SaveChangesAsync(cancellationToken);
+        return $"Removed playbook rule '{rule.Title}'. Future reviews no longer check against it.";
+    }
+
     private async Task<IReadOnlyList<TenantClause>> SearchLibraryAsync(string query, CancellationToken cancellationToken)
     {
         // Tenant libraries are small (seed is 8 rows); load once and reuse the shared forgiving search.
