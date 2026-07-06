@@ -3,6 +3,7 @@ using System;
 using Cortex.Modules.Legal.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cortex.Modules.Legal.Persistence.Migrations
 {
     [DbContext(typeof(LegalDbContext))]
-    partial class LegalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702231843_AddMatterProfile")]
+    partial class AddMatterProfile
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,103 +25,6 @@ namespace Cortex.Modules.Legal.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.ConflictAttestation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AttestationHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid>("AttestedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DataSnapshotJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("MatterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("PerformedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PriorAttestationHash")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("SearchTermsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatterId", "PerformedAt");
-
-                    b.ToTable("conflict_attestations", "legal");
-                });
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.DocumentTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ClauseSlugsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "Name")
-                        .IsUnique();
-
-                    b.ToTable("document_templates", "legal");
-                });
 
             modelBuilder.Entity("Cortex.Modules.Legal.Persistence.Matter", b =>
                 {
@@ -226,97 +132,6 @@ namespace Cortex.Modules.Legal.Persistence.Migrations
                     b.ToTable("matter_documents", "legal");
                 });
 
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("MatterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTimeOffset>("StartsAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatterId");
-
-                    b.HasIndex("TenantId", "StartsAt");
-
-                    b.ToTable("matter_events", "legal");
-                });
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterParty", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("MatterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatterId");
-
-                    b.ToTable("matter_parties", "legal");
-                });
-
             modelBuilder.Entity("Cortex.Modules.Legal.Persistence.PlaybookRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -413,37 +228,10 @@ namespace Cortex.Modules.Legal.Persistence.Migrations
                     b.ToTable("clauses", "legal");
                 });
 
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.ConflictAttestation", b =>
-                {
-                    b.HasOne("Cortex.Modules.Legal.Persistence.Matter", null)
-                        .WithMany()
-                        .HasForeignKey("MatterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterDocument", b =>
                 {
                     b.HasOne("Cortex.Modules.Legal.Persistence.Matter", null)
                         .WithMany("Documents")
-                        .HasForeignKey("MatterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterEvent", b =>
-                {
-                    b.HasOne("Cortex.Modules.Legal.Persistence.Matter", null)
-                        .WithMany()
-                        .HasForeignKey("MatterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterParty", b =>
-                {
-                    b.HasOne("Cortex.Modules.Legal.Persistence.Matter", null)
-                        .WithMany()
                         .HasForeignKey("MatterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

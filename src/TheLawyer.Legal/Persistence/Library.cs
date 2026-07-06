@@ -20,6 +20,23 @@ public sealed class TenantClause : TenantEntityBase
     public required string Template { get; set; }
 }
 
+/// <summary>
+/// A reusable document template: an ordered list of clause slugs assembled into a full draft
+/// (title + numbered sections) by draft_from_template. Templates reference clauses by slug rather
+/// than copying text, so curating a clause updates every template that uses it.
+/// </summary>
+public sealed class DocumentTemplate : TenantEntityBase
+{
+    /// <summary>Stable name within the tenant (e.g. "mutual-nda").</summary>
+    public required string Name { get; set; }
+
+    /// <summary>The document heading, with {PartyA} / {PartyB} placeholders (e.g. "Mutual NDA between {PartyA} and {PartyB}").</summary>
+    public required string Title { get; set; }
+
+    /// <summary>Ordered JSON array of clause slugs.</summary>
+    public required string ClauseSlugsJson { get; set; }
+}
+
 public enum RuleSeverity
 {
     Info = 0,
