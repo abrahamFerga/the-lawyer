@@ -37,7 +37,7 @@ builder.AddCortexConnector<CortexPeerConnector>(); // talk to sibling Cortex sys
 // What this product sells (the plan — not checkout metadata — decides what a purchase grants).
 builder.Services.AddCortexProduct(new ProductOffering
 {
-    ProductId = "the-lawyer",
+    ProductId = "casewell",
     Plans =
     [
         new ProductPlan { Id = "solo", Modules = ["legal"], DefaultSeats = 1, MonthlyTokenBudget = 200_000 },

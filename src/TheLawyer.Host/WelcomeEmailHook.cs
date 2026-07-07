@@ -21,7 +21,7 @@ public sealed class WelcomeEmailHook(ISmtpTransport smtp) : ITenantProvisionedHo
             To: context.AdminEmail,
             Subject: $"Your practice workspace '{context.Name}' is ready",
             TextBody:
-                $"Welcome to The Lawyer!\n\n" +
+                $"Welcome to Casewell!\n\n" +
                 $"Your workspace '{context.Name}' ({context.Slug}) is live and you are its administrator " +
                 $"({context.AdminEmail}).\n\n" +
                 "First steps:\n" +

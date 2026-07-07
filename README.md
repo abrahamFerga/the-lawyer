@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚖️ The Lawyer
+# ⚖️ Casewell
 
 **The free, open-source AI assistant that runs a law practice — and leaves you in charge.**
 
@@ -14,7 +14,7 @@ Matters · Docketing · Conflict checks · Drafting · Time & pre-bills · Clien
 
 ## What it does
 
-The Lawyer is a domain application for lawyers and small firms. It's organized the way a
+Casewell is a domain application for lawyers and small firms. It's organized the way a
 practice is — around **matters** — and its AI assistant does real work inside them:
 
 | You say | It does |
@@ -44,7 +44,7 @@ Most AI legal tools are a chat window. This one is an **accountable system**:
 
 ## Free to use
 
-The Lawyer is **MIT-licensed and free to run yourself** — your hardware or your cloud, your
+Casewell is **MIT-licensed and free to run yourself** — your hardware or your cloud, your
 data, your AI keys. Run it with the built-in keyless Mock provider to try everything, then
 plug in your own OpenAI, Azure OpenAI, Anthropic, or Ollama key when you're ready (keys are
 stored write-only, encrypted).
@@ -59,9 +59,9 @@ Prerequisites: .NET 10 SDK, Docker Desktop, Node 20+, and a sibling checkout of
 its UI packages run from source until they publish to npm).
 
 ```bash
-git clone https://github.com/abrahamFerga/the-lawyer
+git clone https://github.com/abrahamFerga/casewell
 git clone https://github.com/abrahamFerga/Cortex     # sibling directory
-cd the-lawyer
+cd casewell
 dotnet run --project src/TheLawyer.AppHost
 ```
 
@@ -72,7 +72,7 @@ entire pipeline, approvals and audit included.
 
 ## Built on Cortex
 
-The Lawyer is a product on the [Cortex platform](https://github.com/abrahamFerga/Cortex):
+Casewell is a product on the [Cortex platform](https://github.com/abrahamFerga/Cortex):
 the legal domain lives in this repo; the security spine — multi-tenant isolation, RBAC,
 human-in-the-loop approvals, audit, budgets, channels — comes from the platform packages and
 is shared by every Cortex product. That's why a small product ships enterprise controls.
