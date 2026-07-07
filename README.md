@@ -26,7 +26,7 @@ practice is — around **matters** — and its AI assistant does real work insid
 | *"Review this contract against our playbook"* | Every rule checked, every finding cited to the file |
 | *"Brief me on Meridian"* | Parties, deadlines, tasks, hours, documents — one look |
 
-Clients can reach the practice over **WhatsApp**; intake lands on the matter, conflict-checked.
+Clients can reach the practice over **WhatsApp** or the firm's **intake email address** — messages and attachments land as conflict-checkable intake, filed where they belong. The firm's existing documents stay where they are: connect **SharePoint/OneDrive, Google Drive, an S3 bucket, or Azure Blob** and the assistant works on them in place.
 
 ## Why it's different
 
