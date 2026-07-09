@@ -398,6 +398,7 @@ public sealed class LegalModule : IModule
                 Permission = ViewMatters,
                 DataEndpoint = "/api/legal/matters",
                 DetailEndpoint = "/api/legal/matters/{id}/detail",
+                Placeholder = "No matters yet. Matters are opened in Chat - try: 'Open a matter for Acme / Initech NDA, client Acme LLC'. The assistant runs the conflict check first and asks for your approval before anything is created.",
                 Columns =
                 [
                     new("matterNumber", "Number"), new("name", "Matter"), new("clientName", "Client"),
@@ -410,6 +411,7 @@ public sealed class LegalModule : IModule
                 Id = "calendar", Label = "Calendar", Route = "/legal/calendar", Icon = "calendar", Order = 2,
                 Permission = ViewMatters,
                 DataEndpoint = "/api/legal/events",
+                Placeholder = "Nothing docketed yet. Deadlines are captured in Chat - try: 'The answer in Acme is due August 14'. Docketed dates remind ahead of time and when overdue.",
                 Columns =
                 [
                     new("startsAt", "When"), new("type", "Type"), new("title", "Event"),

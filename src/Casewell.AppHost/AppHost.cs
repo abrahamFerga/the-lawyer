@@ -59,6 +59,7 @@ if (builder.ExecutionContext.IsRunMode && Directory.Exists(workspaceDir) && Tool
     var workspace = builder.AddViteApp("casewell-ui", workspaceDir)
         .WithPnpm()
         .WaitFor(api)
+        .WithEnvironment("VITE_BRAND_NAME", "Casewell")
         .WithEnvironment("VITE_API_BASE", api.GetEndpoint("http"))
         .WithExternalHttpEndpoints();
 
