@@ -9,6 +9,7 @@ using Cortex.Connectors.LocalFolder;
 using Cortex.Connectors.MsGraph;
 using Cortex.Connectors.Peer;
 using Cortex.Connectors.S3;
+using Cortex.Connectors.Documenso;
 using Cortex.Modules.Legal;
 using TheLawyer.Host;
 
@@ -32,6 +33,7 @@ builder.AddCortexConnector<AzureBlobConnector>();
 builder.AddCortexConnector<MsGraphConnector>();    // "the firm keeps its files in Microsoft 365"
 builder.AddCortexConnector<GoogleDriveConnector>(); // …or in Google Drive
 builder.AddCortexConnector<S3Connector>();         // …or in an S3 bucket (AWS, MinIO, R2)
+builder.AddCortexConnector<DocumensoConnector>(); // e-signature (open-source; hosted or self-hosted)
 builder.AddCortexConnector<CortexPeerConnector>(); // talk to sibling Cortex systems
 
 // What this product sells (the plan — not checkout metadata — decides what a purchase grants).
