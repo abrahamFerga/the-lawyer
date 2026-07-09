@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using Cortex.Application.Documents;
+using Cortex.Application.Notifications;
 using Cortex.Application.Files;
 using Cortex.Core.Identity;
 using Cortex.Core.Multitenancy;
@@ -20,7 +21,8 @@ public sealed class BriefingTools(
     IFileStore files,
     ITenantContext tenant,
     ICurrentUser currentUser,
-    IPdfRenderer pdfRenderer)
+    IPdfRenderer pdfRenderer,
+    ISmtpTransport smtp)
 {
     [Description("The one-look brief on a matter: status, parties, open events (overdue flagged), open tasks, time totals, and recent documents. Use to answer 'brief me on X' or before working a matter.")]
     public async Task<string> GetMatterOverview(
@@ -107,6 +109,79 @@ public sealed class BriefingTools(
             return $"No matter named '{matterName}' exists. Use list_matters to find the right name.";
         }
 
+        var body = await ComposeStatusLetterAsync(matter, cancellationToken);
+        var pdf = pdfRenderer.Render($"Status update — {matter.Name}", body);
+        using var stream = new MemoryStream(pdf);
+        var stored = await files.SaveAsync(
+            $"status-update-{DateTime.UtcNow:yyyyMMdd-HHmm}.pdf", "application/pdf", stream,
+            source: "status_update", cancellationToken);
+
+        db.MatterDocuments.Add(new MatterDocument
+        {
+            TenantId = tenant.RequireTenantId(),
+            MatterId = matter.Id,
+            FileId = stored.Id,
+            FileName = stored.FileName,
+            Note = "client status update (draft for attorney review)",
+        });
+        await db.SaveChangesAsync(cancellationToken);
+
+        return $"Filed draft status letter '{stored.FileName}' (file id: {stored.Id}) on matter '{matter.Name}' " +
+               "for attorney review before sending.";
+    }
+
+    [Description("EMAIL the current status letter to the matter's client — ONLY after an attorney has reviewed a drafted letter (draft_status_update). Recomposes from current data, sends to the matter's client email, and files the sent copy. Side-effecting, outward-facing, and requires human approval.")]
+    public async Task<string> SendStatusUpdate(
+        [Description("The matter name.")] string matterName,
+        CancellationToken cancellationToken = default)
+    {
+        var matter = await FindAccessibleMatterAsync(matterName, cancellationToken);
+        if (matter is null)
+        {
+            return $"No matter named '{matterName}' exists. Use list_matters to find the right name.";
+        }
+
+        if (string.IsNullOrWhiteSpace(matter.ClientEmail))
+        {
+            return $"Matter '{matter.Name}' has no client email on file — the letter stays a draft. " +
+                   "An attorney can add one when creating the matter (create_matter's clientEmail).";
+        }
+
+        if (!smtp.IsConfigured)
+        {
+            return "No email transport is configured (Email: section), so the letter cannot be sent. " +
+                   "It can still be drafted and delivered manually (draft_status_update).";
+        }
+
+        var letter = await ComposeStatusLetterAsync(matter, cancellationToken);
+        // The client copy carries no DRAFT banner — the approval that released this send IS the review record.
+        var clientBody = letter.Replace(DraftBanner, "").TrimEnd() + "\n";
+        await smtp.SendAsync(new EmailMessage(
+            matter.ClientEmail!, $"Status update — {matter.Name}", clientBody), cancellationToken);
+
+        var pdf = pdfRenderer.Render($"Status update — {matter.Name} (sent)", clientBody);
+        using var sentStream = new MemoryStream(pdf);
+        var sentCopy = await files.SaveAsync(
+            $"status-update-sent-{DateTime.UtcNow:yyyyMMdd-HHmm}.pdf", "application/pdf", sentStream,
+            source: "status_update", cancellationToken);
+        db.MatterDocuments.Add(new MatterDocument
+        {
+            TenantId = tenant.RequireTenantId(),
+            MatterId = matter.Id,
+            FileId = sentCopy.Id,
+            FileName = sentCopy.FileName,
+            Note = $"status letter SENT to {matter.ClientEmail} on {DateTimeOffset.UtcNow:yyyy-MM-dd}",
+        });
+        await db.SaveChangesAsync(cancellationToken);
+
+        return $"Sent the status letter for matter '{matter.Name}' to {matter.ClientEmail} and filed the sent copy " +
+               $"('{sentCopy.FileName}', file id: {sentCopy.Id}).";
+    }
+
+    private const string DraftBanner = "DRAFT — for attorney review before sending to the client.";
+
+    private async Task<string> ComposeStatusLetterAsync(Matter matter, CancellationToken cancellationToken)
+    {
         var now = DateTimeOffset.UtcNow;
         var since = now.AddDays(-30);
         var recentEvents = await db.MatterEvents
@@ -174,26 +249,9 @@ public sealed class BriefingTools(
         body.AppendLine("Sincerely,");
         body.AppendLine("[Attorney name]");
         body.AppendLine();
-        body.AppendLine("DRAFT — for attorney review before sending to the client.");
+        body.AppendLine(DraftBanner);
 
-        var pdf = pdfRenderer.Render($"Status update — {matter.Name}", body.ToString());
-        using var stream = new MemoryStream(pdf);
-        var stored = await files.SaveAsync(
-            $"status-update-{DateTime.UtcNow:yyyyMMdd-HHmm}.pdf", "application/pdf", stream,
-            source: "status_update", cancellationToken);
-
-        db.MatterDocuments.Add(new MatterDocument
-        {
-            TenantId = tenant.RequireTenantId(),
-            MatterId = matter.Id,
-            FileId = stored.Id,
-            FileName = stored.FileName,
-            Note = "client status update (draft for attorney review)",
-        });
-        await db.SaveChangesAsync(cancellationToken);
-
-        return $"Filed draft status letter '{stored.FileName}' (file id: {stored.Id}) on matter '{matter.Name}' " +
-               "for attorney review before sending.";
+        return body.ToString();
     }
 
     private async Task<Matter?> FindAccessibleMatterAsync(string name, CancellationToken cancellationToken)

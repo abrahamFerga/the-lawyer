@@ -93,6 +93,14 @@ public sealed class LegalToolSource : IModuleToolSource
             new ModuleTool
             {
                 ModuleId = ModuleId,
+                Name = "send_status_update",
+                Permission = Permissions.ForTool(ModuleId, "send_status_update"),
+                Function = AIFunctionFactory.Create(briefing.SendStatusUpdate, name: "send_status_update"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
                 Name = "search_clauses",
                 Permission = Permissions.ForTool(ModuleId, "search_clauses"),
                 Function = AIFunctionFactory.Create(clauses.SearchClauses, name: "search_clauses"),

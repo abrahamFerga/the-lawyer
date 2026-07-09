@@ -117,6 +117,7 @@ public sealed class MatterTools(
         [Description("The matter name, e.g. 'Julia Assange defense' or 'Acme / Initech NDA'.")] string name,
         [Description("Optional client name the matter is for.")] string? clientName = null,
         [Description("Optional practice area, e.g. 'Litigation' or 'IP'. Must map to the firm's taxonomy.")] string? practiceArea = null,
+        [Description("Optional client email for reviewed status letters (send_status_update).")] string? clientEmail = null,
         CancellationToken cancellationToken = default)
     {
         var trimmed = name.Trim();
@@ -146,6 +147,7 @@ public sealed class MatterTools(
             TenantId = tenant.RequireTenantId(),
             Name = trimmed,
             ClientName = string.IsNullOrWhiteSpace(clientName) ? null : clientName.Trim(),
+            ClientEmail = string.IsNullOrWhiteSpace(clientEmail) ? null : clientEmail.Trim(),
             PracticeArea = area,
         };
         db.Matters.Add(matter);

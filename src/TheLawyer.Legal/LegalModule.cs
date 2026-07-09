@@ -51,7 +51,9 @@ public sealed class LegalModule : IModule
             "events/tasks block it; only force after the user explicitly confirms. " +
             "BRIEFING: answer 'brief me on X' with get_matter_overview - one look, everything open. When the " +
             "client should hear where things stand, draft_status_update files a client-safe letter (progress, " +
-            "dates, hours - nothing internal) as a DRAFT for attorney review. " +
+            "dates, hours - nothing internal) as a DRAFT for attorney review. NEVER send to the client " +
+            "unprompted: only after the user has reviewed a draft and asks, send_status_update emails it " +
+            "to the client on file and files the sent copy. " +
             "TIME CAPTURE: the moment the user mentions work done ('log half an hour', 'call with opposing " +
             "counsel took 20 minutes'), record it with log_time (matter, hours, narrative description) — no " +
             "approval needed, it is the one quick-capture write; answer 'what did I work on' with list_time. " +
@@ -301,6 +303,13 @@ public sealed class LegalModule : IModule
                 Name = "draft_status_update",
                 Description = "Draft a client-facing status letter (progress, upcoming dates, hours - nothing internal) filed on the matter as a PDF draft for attorney review. Side-effecting: writes a document and requires human approval.",
                 Permission = Permissions.ForTool(Id, "draft_status_update"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "send_status_update",
+                Description = "Email the current status letter to the matter's client — ONLY after an attorney reviewed a draft (ABA Op 512: AI output is reviewed before it leaves the firm). Outward-facing and requires human approval.",
+                Permission = Permissions.ForTool(Id, "send_status_update"),
                 RequiresApproval = true,
             },
             new ToolDescriptor

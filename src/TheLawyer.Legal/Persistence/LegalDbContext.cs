@@ -38,6 +38,7 @@ public sealed class LegalDbContext(
             b.Property(x => x.Name).HasMaxLength(200).IsRequired();
             b.Property(x => x.MatterNumber).HasMaxLength(16);
             b.Property(x => x.ClientName).HasMaxLength(200);
+            b.Property(x => x.ClientEmail).HasMaxLength(320);
             b.Property(x => x.PracticeArea).HasMaxLength(100);
             b.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
             b.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();

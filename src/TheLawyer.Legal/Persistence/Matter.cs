@@ -28,6 +28,10 @@ public sealed class Matter : TenantEntityBase
     /// <summary>The client this matter is for (display-level; the PM system stays the system of record).</summary>
     public string? ClientName { get; set; }
 
+    /// <summary>Where reviewed client communications (status letters) are sent. Optional —
+    /// without it, send_status_update refuses and the letter stays a filed draft.</summary>
+    public string? ClientEmail { get; set; }
+
     /// <summary>Canonical practice area from <see cref="PracticeAreas"/>, or null when uncategorized.</summary>
     public string? PracticeArea { get; set; }
 

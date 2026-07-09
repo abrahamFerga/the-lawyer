@@ -109,3 +109,45 @@ queries ("Log half an hour", "Brief me on Meridian") describe tools that don't e
 - [Everlaw](https://www.everlaw.com/), [DISCO Cecilia AI](https://csdisco.com/blog/how-artificial-intelligence-transforms-ediscovery), [AI contract redlining](https://www.buildmvpfast.com/blog/ai-contract-review-harvey-spellbook-law-firm-roi-2026)
 - [Legal spend management / CounselLink+](https://www.lexisnexis.com/en-us/products/counsellink/legal-spend-management.page), [Legal billing software 2026](https://www.consultwebs.com/blog/legal-billing-software-the-15-best-options-in-2026/)
 - [Open-source legal case management (ArkCase, ClinicCases, Worklenz)](https://www.goodfirms.co/legal-case-management-software/blog/best-free-open-source-legal-case-management-software-solutions)
+
+## Answers (researched decisions, 2026-07-09)
+
+The user delegated the three open domain questions; each answer below is grounded in the
+cited sources and is now implemented or designed accordingly.
+
+**1. Status-letter delivery: review-first, explicit send — never auto-send.**
+[ABA Formal Opinion 512](https://www.americanbar.org/content/dam/aba/administrative/professional_responsibility/ethics-opinions/aba-formal-opinion-512.pdf)
+(July 2024) requires lawyers to review generative-AI output before relying on it, and firm
+practice guidance is that AI-assisted work product is reviewed by a supervising lawyer before
+it leaves the firm. Communication-automation guidance ([Clio](https://www.clio.com/blog/law-firm-client-communication/),
+[Legal Authority](https://legalauthority.io/automated-client-updates/)) draws the same line:
+automated scheduling is fine, unreviewed substance is not — and bad news never comes from a
+robot. **Implemented**: `draft_status_update` files the draft; a separate, approval-gated,
+outward-facing `send_status_update` emails it to the matter's client email (a new
+`Matter.ClientEmail`) and files the sent copy. No client email or no SMTP → it refuses and
+the letter stays a draft.
+
+**2. E-signature: Documenso first, DocuSign later if demanded.**
+[Documenso](https://documenso.com/) is the open-source e-signature platform (AGPL-3.0,
+self-hostable, REST API + webhooks) — the ethos match for a free, open-source product, and
+its API-token auth makes it a *service-mode* connector (simpler than DocuSign's OAuth; we
+call the HTTP API only, so its license does not touch our MIT code). DocuSign remains the
+enterprise standard ([comparison](https://www.esign.ai/blog/docusign-vs-docusign-api-rate-limits-pricing-tier-review-2026))
+and can ship later as a second adapter behind the same seam. **Implemented** (Cortex):
+`documenso` connector — send a stored document for signature (approval-gated), check status,
+fetch the signed copy back into the file store.
+
+**3. Trust accounting v1: a matter-scoped ledger with fail-closed guards — no bank
+integration required.** The rules are concrete
+([Model Rule 1.15](https://www.americanbar.org/groups/law_practice/resources/law-technology-today/2024/a-guide-to-ensuring-iolta-account-compliance/),
+[three-way reconciliation guides](https://caretlegal.com/blog/three-way-trust-reconciliation-explained/)):
+client funds live in a separate trust account, every matter keeps its own ledger, **a negative
+client-ledger balance is treated as misappropriation even when the account total is positive**,
+and most bars mandate a monthly three-way reconciliation (bank statement = book balance = sum
+of client ledgers), retained 5–7 years. **Designed** (next build): `TrustTransaction`
+(matter-scoped deposit/disbursement, approval-gated, append-only), the fail-closed guard —
+a disbursement exceeding the matter's trust balance is refused, not warned —
+`trust_balance`/`list_trust_transactions`, and `export_trust_reconciliation`: the three-way
+worksheet (user supplies the bank-statement figure; the module supplies the other two legs)
+rendered to PDF and filed. Bank feeds are explicitly out of scope for v1: the ledger records
+what happened at the bank; it does not move money.
