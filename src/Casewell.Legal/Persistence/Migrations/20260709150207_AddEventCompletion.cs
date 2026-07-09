@@ -1,21 +1,21 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace TheLawyer.Legal.Persistence.Migrations
+namespace Cortex.Modules.Legal.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddClientEmail : Migration
+    public partial class AddEventCompletion : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "ClientEmail",
+            migrationBuilder.AddColumn<DateTimeOffset>(
+                name: "CompletedAt",
                 schema: "legal",
-                table: "matters",
-                type: "character varying(320)",
-                maxLength: 320,
+                table: "matter_events",
+                type: "timestamp with time zone",
                 nullable: true);
         }
 
@@ -23,9 +23,9 @@ namespace TheLawyer.Legal.Persistence.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "ClientEmail",
+                name: "CompletedAt",
                 schema: "legal",
-                table: "matters");
+                table: "matter_events");
         }
     }
 }

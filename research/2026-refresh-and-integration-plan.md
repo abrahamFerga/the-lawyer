@@ -10,7 +10,7 @@ That's Priority 0: lower lift than any external integration, and already proven 
 
 `samples/Cortex.Modules.Legal` in the **Cortex** repo (used there as the platform's demo/test
 fixture for module composition, RAG, jobs, etc.) has, tested and working, several capabilities
-Casewell's real product module (`src/TheLawyer.Legal`) never received:
+Casewell's real product module (`src/Casewell.Legal`) never received:
 
 | Capability | Sample module | Casewell today |
 |---|---|---|

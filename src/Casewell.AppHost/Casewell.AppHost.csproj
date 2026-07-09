@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsAspireHost>true</IsAspireHost>
-    <UserSecretsId>thelawyer-apphost</UserSecretsId>
+    <UserSecretsId>casewell-apphost</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TheLawyer.Host\TheLawyer.Host.csproj" />
+    <ProjectReference Include="..\Casewell.Host\Casewell.Host.csproj" />
   </ItemGroup>
 
 </Project>

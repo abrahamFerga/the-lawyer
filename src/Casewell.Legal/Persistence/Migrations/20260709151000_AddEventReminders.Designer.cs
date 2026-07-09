@@ -9,11 +9,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace TheLawyer.Legal.Persistence.Migrations
+namespace Cortex.Modules.Legal.Persistence.Migrations
 {
     [DbContext(typeof(LegalDbContext))]
-    [Migration("20260709145522_AddMatterTasks")]
-    partial class AddMatterTasks
+    [Migration("20260709151000_AddEventReminders")]
+    partial class AddEventReminders
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -235,11 +235,17 @@ namespace TheLawyer.Legal.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("MatterId")
                         .HasColumnType("uuid");
@@ -247,6 +253,9 @@ namespace TheLawyer.Legal.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ReminderStage")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("timestamp with time zone");

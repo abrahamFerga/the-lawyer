@@ -3,27 +3,27 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace TheLawyer.Legal.Persistence.Migrations
+namespace Cortex.Modules.Legal.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddTimeEntries : Migration
+    public partial class AddMatterTasks : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "time_entries",
+                name: "matter_tasks",
                 schema: "legal",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     MatterId = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
-                    UserDisplay = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    Hours = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
-                    Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
-                    WorkedOn = table.Column<DateOnly>(type: "date", nullable: false),
-                    Billable = table.Column<bool>(type: "boolean", nullable: false),
+                    Title = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
+                    Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    AssignedTo = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    DueOn = table.Column<DateOnly>(type: "date", nullable: true),
+                    CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -32,9 +32,9 @@ namespace TheLawyer.Legal.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_time_entries", x => x.Id);
+                    table.PrimaryKey("PK_matter_tasks", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_time_entries_matters_MatterId",
+                        name: "FK_matter_tasks_matters_MatterId",
                         column: x => x.MatterId,
                         principalSchema: "legal",
                         principalTable: "matters",
@@ -43,23 +43,23 @@ namespace TheLawyer.Legal.Persistence.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_time_entries_MatterId",
+                name: "IX_matter_tasks_MatterId",
                 schema: "legal",
-                table: "time_entries",
+                table: "matter_tasks",
                 column: "MatterId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_time_entries_TenantId_WorkedOn",
+                name: "IX_matter_tasks_TenantId_CompletedAt",
                 schema: "legal",
-                table: "time_entries",
-                columns: new[] { "TenantId", "WorkedOn" });
+                table: "matter_tasks",
+                columns: new[] { "TenantId", "CompletedAt" });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "time_entries",
+                name: "matter_tasks",
                 schema: "legal");
         }
     }

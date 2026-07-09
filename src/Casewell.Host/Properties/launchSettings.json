@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "TheLawyer.Host": {
+    "Casewell.Host": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

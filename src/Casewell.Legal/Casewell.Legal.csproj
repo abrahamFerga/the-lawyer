@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- TheLawyer's domain module — the matter-centric legal vertical, implemented as a Cortex
+  <!-- Casewell's domain module — the matter-centric legal vertical, implemented as a Cortex
        module (IModule + manifest). The Cortex platform (packages below) supplies auth,
        multi-tenancy, RBAC, audit, chat/agents, document tools, RAG, jobs, and connectors;
        this project owns ONLY the legal domain: matters, clause library, playbook, walls. -->
@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="TheLawyer.Legal.Tests" />
+    <InternalsVisibleTo Include="Casewell.Legal.Tests" />
   </ItemGroup>
 
   <ItemGroup>

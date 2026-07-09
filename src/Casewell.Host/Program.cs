@@ -11,10 +11,10 @@ using Cortex.Connectors.Peer;
 using Cortex.Connectors.S3;
 using Cortex.Connectors.Documenso;
 using Cortex.Modules.Legal;
-using TheLawyer.Host;
+using Casewell.Host;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TheLawyer — a single-vertical legal system built ENTIRELY on the Cortex
+// Casewell — a single-vertical legal system built ENTIRELY on the Cortex
 // platform. The platform packages supply auth (OIDC / Entra External ID-ready),
 // multi-tenancy, RBAC, append-only audit, chat over AG-UI + SignalR, document
 // tools, the permission-aware RAG pipeline, background jobs, connectors, and

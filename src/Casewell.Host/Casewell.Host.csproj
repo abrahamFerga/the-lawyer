@@ -7,7 +7,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>thelawyer-host</UserSecretsId>
+    <UserSecretsId>casewell-host</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TheLawyer.Legal\TheLawyer.Legal.csproj" />
+    <ProjectReference Include="..\Casewell.Legal\Casewell.Legal.csproj" />
   </ItemGroup>
 
 </Project>

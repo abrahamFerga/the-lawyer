@@ -1,8 +1,8 @@
-# TheLawyer — Architecture
+# Casewell — Architecture
 
 ## Context (C4 L1)
 
-External actors and TheLawyer as a single box.
+External actors and Casewell as a single box.
 
 Diagram: [`docs/diagrams/c1-context.puml`](docs/diagrams/c1-context.puml)
 
@@ -25,9 +25,9 @@ Diagram: [`docs/diagrams/c2-containers.puml`](docs/diagrams/c2-containers.puml)
 
 | Container | Tech | Purpose |
 |---|---|---|
-| `TheLawyer.AppHost` | .NET 10 Aspire AppHost | Local orchestration: spins up the API, the SPA dev server, Postgres, Redis, Mailpit (dev), pgvector init |
-| `TheLawyer.Api` | .NET 10 minimal APIs | All HTTP traffic enters here. Versioned `/api/v1/...`. Problem Details on errors. Idempotency keys on writes |
-| `TheLawyer.Web` | Vite + React + TS + shadcn/ui + Tailwind + PWA (vite-plugin-pwa) | Dashboard SPA + Client Portal (single codebase, role-gated routes) |
+| `Casewell.AppHost` | .NET 10 Aspire AppHost | Local orchestration: spins up the API, the SPA dev server, Postgres, Redis, Mailpit (dev), pgvector init |
+| `Casewell.Api` | .NET 10 minimal APIs | All HTTP traffic enters here. Versioned `/api/v1/...`. Problem Details on errors. Idempotency keys on writes |
+| `Casewell.Web` | Vite + React + TS + shadcn/ui + Tailwind + PWA (vite-plugin-pwa) | Dashboard SPA + Client Portal (single codebase, role-gated routes) |
 | `Postgres` | Postgres 16 + pgvector extension | Operational data + audit (separate schema) + vector embeddings |
 | `Redis` | Redis 7 | Distributed cache, idempotency replay store, per-tenant rate-limit windows, Hangfire job-state (optional, can run Hangfire on Postgres too) |
 | `Hangfire` | in-process via `Hangfire.PostgreSql` | Scheduled jobs + reactive jobs. Dashboard at `/hangfire` (firm-admin only) |
@@ -37,7 +37,7 @@ Diagram: [`docs/diagrams/c2-containers.puml`](docs/diagrams/c2-containers.puml)
 
 ## Components (C4 L3) — key containers
 
-### Inside `TheLawyer.Api`
+### Inside `Casewell.Api`
 
 Diagram: [`docs/diagrams/c3-components-api.puml`](docs/diagrams/c3-components-api.puml)
 
@@ -53,13 +53,13 @@ Diagram: [`docs/diagrams/c3-components-api.puml`](docs/diagrams/c3-components-ap
 - **Use-case handlers** (MediatR-style, but minimal-API direct calls — no MediatR library; one handler class per use case to keep things simple).
 - **Background-job triggers** — endpoints don't run long work; they enqueue Hangfire jobs.
 
-### Inside `TheLawyer.Application.AiAssistant`
+### Inside `Casewell.Application.AiAssistant`
 
 - **`MatterAssistantAgent`** — MAF `AIAgent` constructed with `MatterAssistantTool` (read matter file by id), `DocumentSearchTool` (semantic search via pgvector), `BillingSummaryTool` (read-only matter financial summary). System prompt scoped per matter.
 - **`IAiAssistantService`** — abstraction over MAF. Single impl (`ClaudeMatterAssistantService`) for v1; swap-ready for Azure OpenAI / on-prem.
 - **`ConversationStore`** — per-matter conversation persistence in Postgres; one row per turn with `MatterId`, `UserId`, `OccurredAt`, `Role`, `Content`, `ToolCallsJson`.
 
-### Inside `TheLawyer.Web`
+### Inside `Casewell.Web`
 
 - **Route shell** — `<App>` with `<TenantProvider>` + `<AuthProvider>` + `<TooltipProvider>` + `<Toaster>`.
 - **Layout** — sidebar nav (per role) + topbar (tenant switch + user menu + persistent global timer + chatbot toggle) + main content + slide-over `<ChatPanel>`.
@@ -70,38 +70,38 @@ Diagram: [`docs/diagrams/c3-components-api.puml`](docs/diagrams/c3-components-ap
 ## Solution layout
 
 ```
-TheLawyer/
-├── TheLawyer.sln
+Casewell/
+├── Casewell.sln
 ├── global.json                          # Pins .NET 10 SDK
 ├── Directory.Build.props                # Shared MSBuild props (nullable, implicit usings, warnings-as-errors in Release)
 ├── .editorconfig
 ├── src/
-│   ├── TheLawyer.AppHost/               # Aspire AppHost
-│   ├── TheLawyer.ServiceDefaults/       # OTel + health + resilience defaults
-│   ├── TheLawyer.Api/                   # Minimal APIs
-│   ├── TheLawyer.Application/           # Shared application services + abstractions
-│   ├── TheLawyer.Application.Matters/   # Matters bounded context
-│   ├── TheLawyer.Application.Documents/ # Documents bounded context
-│   ├── TheLawyer.Application.Calendar/  # Calendar bounded context
-│   ├── TheLawyer.Application.Billing/   # Billing bounded context
-│   ├── TheLawyer.Application.Trust/     # Trust bounded context
-│   ├── TheLawyer.Application.Portal/    # Client portal bounded context
-│   ├── TheLawyer.Application.AiAssistant/  # MAF-based matter chatbot
-│   ├── TheLawyer.Application.Connectors/   # Connector registry + IChannel/IIntegration contracts
-│   ├── TheLawyer.Application.Reporting/    # Read-models for dashboards
-│   ├── TheLawyer.Domain/                # Entities + value objects + domain events + [Pii] attribute
-│   ├── TheLawyer.Infrastructure/        # EF Core + outbox + multi-tenant filters + audit log
-│   ├── TheLawyer.Infrastructure.Azure/  # Azure-specific impls (Blob, Key Vault, Entra B2C, Service Bus future)
-│   └── TheLawyer.Infrastructure.Slack/  # Slack IChannel impl (working v1 connector)
+│   ├── Casewell.AppHost/               # Aspire AppHost
+│   ├── Casewell.ServiceDefaults/       # OTel + health + resilience defaults
+│   ├── Casewell.Api/                   # Minimal APIs
+│   ├── Casewell.Application/           # Shared application services + abstractions
+│   ├── Casewell.Application.Matters/   # Matters bounded context
+│   ├── Casewell.Application.Documents/ # Documents bounded context
+│   ├── Casewell.Application.Calendar/  # Calendar bounded context
+│   ├── Casewell.Application.Billing/   # Billing bounded context
+│   ├── Casewell.Application.Trust/     # Trust bounded context
+│   ├── Casewell.Application.Portal/    # Client portal bounded context
+│   ├── Casewell.Application.AiAssistant/  # MAF-based matter chatbot
+│   ├── Casewell.Application.Connectors/   # Connector registry + IChannel/IIntegration contracts
+│   ├── Casewell.Application.Reporting/    # Read-models for dashboards
+│   ├── Casewell.Domain/                # Entities + value objects + domain events + [Pii] attribute
+│   ├── Casewell.Infrastructure/        # EF Core + outbox + multi-tenant filters + audit log
+│   ├── Casewell.Infrastructure.Azure/  # Azure-specific impls (Blob, Key Vault, Entra B2C, Service Bus future)
+│   └── Casewell.Infrastructure.Slack/  # Slack IChannel impl (working v1 connector)
 ├── web/
-│   └── thelawyer-web/                   # Vite + React + TS + shadcn + Tailwind + PWA
+│   └── casewell-web/                   # Vite + React + TS + shadcn + Tailwind + PWA
 ├── infra/
 │   └── azure/                           # Terraform: rg, vnet, postgres, redis, blob, key-vault, container-apps, B2C
 ├── tests/
-│   ├── TheLawyer.Domain.Tests/
-│   ├── TheLawyer.Application.Tests/
-│   ├── TheLawyer.Api.IntegrationTests/  # WebApplicationFactory + Testcontainers (real Postgres + Redis)
-│   └── TheLawyer.Web.Tests/             # Vitest + React Testing Library
+│   ├── Casewell.Domain.Tests/
+│   ├── Casewell.Application.Tests/
+│   ├── Casewell.Api.IntegrationTests/  # WebApplicationFactory + Testcontainers (real Postgres + Redis)
+│   └── Casewell.Web.Tests/             # Vitest + React Testing Library
 └── docs/
     ├── diagrams/                         # C4 PlantUML
     └── architecture/                     # ADR backlog notes
@@ -187,7 +187,7 @@ public record OutboxMessage(Guid Id, Guid TenantId, DateTimeOffset OccurredAt, s
 public record AuditEntry(Guid Id, Guid TenantId, DateTimeOffset OccurredAt, Guid ActorUserId, string ActorRole, string Action, string ResourceType, Guid ResourceId, string BeforeJson, string AfterJson, string? IdempotencyKey) : ITenantedEntity;
 ```
 
-Migrations: `dotnet ef migrations add <name> --project src/TheLawyer.Infrastructure`. Migration files checked into git. Production deploy runs migrations as a separate Container App job, never inline at app startup.
+Migrations: `dotnet ef migrations add <name> --project src/Casewell.Infrastructure`. Migration files checked into git. Production deploy runs migrations as a separate Container App job, never inline at app startup.
 
 Trust-account invariants enforced as DB constraints (`amount > 0` for deposits, `amount < 0` for disbursements, balance computed as a derived column) AND as `Domain` invariants checked before the EF write. Hard guardrails per [SPEC.md] answer #11.
 
@@ -269,7 +269,7 @@ Every write endpoint accepts `Idempotency-Key`. All endpoints versioned via URL 
 - **Bundler**: Vite. PWA via `vite-plugin-pwa` (offline manifest + service worker).
 - **State**: TanStack Query for server state; Zustand for ephemeral UI state. No Redux.
 - **Routing**: React Router v6 with lazy-loaded route segments per bounded context.
-- **Components**: shadcn primitives (Button, Form, Dialog, Sheet, Table, Toast, etc.), copied into `web/thelawyer-web/src/components/ui/` per shadcn convention (we own them).
+- **Components**: shadcn primitives (Button, Form, Dialog, Sheet, Table, Toast, etc.), copied into `web/casewell-web/src/components/ui/` per shadcn convention (we own them).
 - **Forms**: shadcn `<Form>` + `react-hook-form` + `zod` validation. One zod schema per request body, shared with the API via `valibot-zod` codegen *(planned; v1 hand-aligned)*.
 - **Tables**: TanStack Table inside a shared `<DataTable>` component.
 - **Chat panel**: `<ChatPanel>` slide-over via shadcn `<Sheet>`. Streams responses via SSE from `/api/v1/ai/matters/{id}/ask`.
@@ -280,4 +280,4 @@ Every write endpoint accepts `Idempotency-Key`. All endpoints versioned via URL 
 
 - [`docs/diagrams/c1-context.puml`](docs/diagrams/c1-context.puml) — actors + system box
 - [`docs/diagrams/c2-containers.puml`](docs/diagrams/c2-containers.puml) — Aspire-orchestrated containers + Azure dependencies
-- [`docs/diagrams/c3-components-api.puml`](docs/diagrams/c3-components-api.puml) — middleware pipeline + endpoint groups inside `TheLawyer.Api`
+- [`docs/diagrams/c3-components-api.puml`](docs/diagrams/c3-components-api.puml) — middleware pipeline + endpoint groups inside `Casewell.Api`

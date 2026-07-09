@@ -9,11 +9,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace TheLawyer.Legal.Persistence.Migrations
+namespace Cortex.Modules.Legal.Persistence.Migrations
 {
     [DbContext(typeof(LegalDbContext))]
-    [Migration("20260709151914_AddClientEmail")]
-    partial class AddClientEmail
+    [Migration("20260709145203_AddTimeEntries")]
+    partial class AddTimeEntries
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -129,10 +129,6 @@ namespace TheLawyer.Legal.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ClientEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
-
                     b.Property<string>("ClientName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -239,17 +235,11 @@ namespace TheLawyer.Legal.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("MatterId")
                         .HasColumnType("uuid");
@@ -257,9 +247,6 @@ namespace TheLawyer.Legal.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
-
-                    b.Property<int>("ReminderStage")
-                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("timestamp with time zone");
@@ -331,61 +318,6 @@ namespace TheLawyer.Legal.Persistence.Migrations
                     b.HasIndex("MatterId");
 
                     b.ToTable("matter_parties", "legal");
-                });
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterTask", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AssignedTo")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateOnly?>("DueOn")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("MatterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatterId");
-
-                    b.HasIndex("TenantId", "CompletedAt");
-
-                    b.ToTable("matter_tasks", "legal");
                 });
 
             modelBuilder.Entity("Cortex.Modules.Legal.Persistence.PlaybookRule", b =>
@@ -567,15 +499,6 @@ namespace TheLawyer.Legal.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterParty", b =>
-                {
-                    b.HasOne("Cortex.Modules.Legal.Persistence.Matter", null)
-                        .WithMany()
-                        .HasForeignKey("MatterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Cortex.Modules.Legal.Persistence.MatterTask", b =>
                 {
                     b.HasOne("Cortex.Modules.Legal.Persistence.Matter", null)
                         .WithMany()

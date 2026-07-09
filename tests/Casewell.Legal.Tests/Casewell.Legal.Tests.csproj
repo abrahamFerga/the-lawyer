@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TheLawyer.Legal\TheLawyer.Legal.csproj" />
+    <ProjectReference Include="..\..\src\Casewell.Legal\Casewell.Legal.csproj" />
   </ItemGroup>
 
 </Project>

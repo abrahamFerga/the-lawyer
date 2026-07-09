@@ -1,7 +1,7 @@
 using Cortex.Application.Commerce;
 using Cortex.Application.Notifications;
 
-namespace TheLawyer.Host;
+namespace Casewell.Host;
 
 /// <summary>
 /// When a firm's workspace is provisioned — by an operator or a completed checkout — the new
