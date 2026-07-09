@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cortex.AspNetCore" Version="0.1.0-alpha.10" />
-    <PackageReference Include="Cortex.Connectors" Version="0.1.0-alpha.10" />
+    <PackageReference Include="Cortex.AspNetCore" Version="0.1.0-alpha.11" />
+    <PackageReference Include="Cortex.Connectors" Version="0.1.0-alpha.11" />
   </ItemGroup>
 
   <ItemGroup>
