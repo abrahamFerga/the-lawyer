@@ -1,11 +1,16 @@
+using Cortex.Application.Authorization;
+using Cortex.Application.Commerce;
 using Cortex.AspNetCore.Connectors;
 using Cortex.AspNetCore.Hosting;
 using Cortex.AspNetCore.Modules;
 using Cortex.Connectors.AzureBlob;
+using Cortex.Connectors.GoogleDrive;
 using Cortex.Connectors.LocalFolder;
 using Cortex.Connectors.MsGraph;
 using Cortex.Connectors.Peer;
+using Cortex.Connectors.S3;
 using Cortex.Modules.Legal;
+using TheLawyer.Host;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TheLawyer — a single-vertical legal system built ENTIRELY on the Cortex
@@ -25,7 +30,37 @@ builder.AddCortexModule<LegalModule>();
 builder.AddCortexConnector<LocalFolderConnector>();
 builder.AddCortexConnector<AzureBlobConnector>();
 builder.AddCortexConnector<MsGraphConnector>();    // "the firm keeps its files in Microsoft 365"
+builder.AddCortexConnector<GoogleDriveConnector>(); // …or in Google Drive
+builder.AddCortexConnector<S3Connector>();         // …or in an S3 bucket (AWS, MinIO, R2)
 builder.AddCortexConnector<CortexPeerConnector>(); // talk to sibling Cortex systems
+
+// What this product sells (the plan — not checkout metadata — decides what a purchase grants).
+builder.Services.AddCortexProduct(new ProductOffering
+{
+    ProductId = "casewell",
+    Plans =
+    [
+        new ProductPlan { Id = "solo", Modules = ["legal"], DefaultSeats = 1, MonthlyTokenBudget = 200_000 },
+        new ProductPlan { Id = "team", Modules = ["legal"], DefaultSeats = 5, MonthlyTokenBudget = 500_000 },
+        new ProductPlan { Id = "dedicated", Dedicated = true },
+    ],
+});
+
+// A law-office role between guest and user: paralegals work matters, the docket, and the
+// library — but never attest conflicts, restrict access, or run billing. Seeded into every
+// tenant's editable baseline; firm admins refine it per tenant afterwards.
+builder.Services.AddCortexRole("paralegal",
+[
+    "chat.use", "chat.conversations.view", "files.upload", "files.read",
+    "tools.documents.read_document", "tools.documents.list_documents",
+    "tools.legal.list_matters", "tools.legal.list_matter_documents",
+    "tools.legal.add_matter_event", "tools.legal.list_matter_events", "tools.legal.list_upcoming_events",
+    "tools.legal.search_clauses", "tools.legal.list_document_templates",
+    "legal.matters.view", "legal.clauses.view",
+]);
+
+// After any tenant is provisioned (operator call or billing webhook): welcome the admin.
+builder.Services.AddCortexTenantProvisionedHook<WelcomeEmailHook>();
 
 var app = builder.Build();
 

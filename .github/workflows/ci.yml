@@ -10,9 +10,13 @@ on:
 permissions:
   contents: read
 
+# Casewell is a thin host + legal module on Cortex platform packages, restored from the
+# committed .packages feed (current version only) — CI is hermetic until the platform
+# publishes to a real feed. The UI ships from the Cortex packages, so there is no SPA to
+# build here, and dedicated-environment Terraform lives in the Cortex repo.
 jobs:
-  build-backend:
-    name: Build .NET solution
+  build:
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,58 +27,10 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore TheLawyer.sln
+        run: dotnet restore TheLawyer.slnx
 
-      - name: Build (Release, warnings as errors)
-        run: dotnet build TheLawyer.sln --no-restore --configuration Release
+      - name: Build (Release)
+        run: dotnet build TheLawyer.slnx -c Release --no-restore
 
-      # Tests added with the Matters epic onward (Domain + Application + Api.IntegrationTests).
-      - name: Test (if any test projects exist)
-        run: |
-          if ls tests/*/*.csproj >/dev/null 2>&1; then
-            dotnet test TheLawyer.sln --configuration Release --no-build
-          else
-            echo "No test projects yet — Foundations epic ships skeleton only."
-          fi
-
-  build-web:
-    name: Build web SPA
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web/thelawyer-web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: web/thelawyer-web/package-lock.json
-
-      - name: Install
-        run: npm ci || npm install
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build
-
-  validate-terraform:
-    name: Validate Terraform
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra/azure
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.9.8'
-      - name: terraform fmt -check
-        run: terraform fmt -check -recursive
-      - name: terraform init (no backend)
-        run: terraform init -backend=false
-      - name: terraform validate
-        run: terraform validate
+      - name: Test
+        run: dotnet test TheLawyer.slnx -c Release --no-build --verbosity normal

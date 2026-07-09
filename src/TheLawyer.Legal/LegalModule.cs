@@ -73,6 +73,52 @@ public sealed class LegalModule : IModule
             "Summarize the documents on a matter, citing each file",
             "Search the clause library for indemnification",
         ],
+        // Chat personas (selectable per turn in the composer's agent picker): each sees ONLY the
+        // tools its job needs — selections narrow the caller's RBAC, never widen it. A firm admin
+        // can override any of these with a same-named profile under Admin -> Agent Profiles.
+        Agents =
+        [
+            new AgentDescriptor
+            {
+                Name = "drafter",
+                Description = "Contract drafting - clause library, templates, playbook, and filing only.",
+                Instructions =
+                    "You are the drafting specialist. Work exclusively on contract language: search the " +
+                    "clause library, draft from the firm's templates, apply the negotiation playbook, and " +
+                    "file finished drafts on the matter (generate_pdf then attach_document_to_matter, " +
+                    "which waits for attorney approval). Decline docketing, conflicts, or matter " +
+                    "management - point the user at the general assistant.",
+                ToolNames =
+                [
+                    "search_clauses", "draft_clause", "list_document_templates", "draft_from_template",
+                    "get_playbook", "generate_pdf", "attach_document_to_matter", "list_matters",
+                ],
+            },
+            new AgentDescriptor
+            {
+                Name = "docketing",
+                Description = "The calendar clerk - matter events and dates, nothing else.",
+                Instructions =
+                    "You are the docketing clerk. Record and report matter events (court dates, filing " +
+                    "deadlines, meetings) with precision; always confirm dates back in ISO format and " +
+                    "flag urgency honestly. Nothing else is yours: no drafting, no conflicts, no billing.",
+                ToolNames =
+                [
+                    "add_matter_event", "list_matter_events", "list_upcoming_events", "list_matters",
+                ],
+            },
+        ],
+        // A shipped chain: draft the engagement papers, then docket the follow-up dates. Each step
+        // runs as a full authorized turn - approvals and audit apply to every step.
+        Workflows =
+        [
+            new WorkflowDescriptor
+            {
+                Name = "engage-and-docket",
+                Description = "Draft the engagement papers, then docket the follow-up dates.",
+                AgentNames = ["drafter", "docketing"],
+            },
+        ],
         Roles = ["legal:user", "legal:admin"],
         Tools =
         [
