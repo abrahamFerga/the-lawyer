@@ -3,17 +3,20 @@ using System;
 using Cortex.Modules.Legal.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Cortex.Modules.Legal.Persistence.Migrations
+namespace TheLawyer.Legal.Persistence.Migrations
 {
     [DbContext(typeof(LegalDbContext))]
-    partial class LegalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260709145522_AddMatterTasks")]
+    partial class AddMatterTasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

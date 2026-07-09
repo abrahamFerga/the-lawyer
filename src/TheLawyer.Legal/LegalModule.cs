@@ -52,6 +52,9 @@ public sealed class LegalModule : IModule
             "approval needed, it is the one quick-capture write; answer 'what did I work on' with list_time. " +
             "BILLING: when asked to prepare a bill or pre-bill, use export_prebill (matter, optional date " +
             "range) — it files the PDF on the matter for billing review. " +
+            "TASKS: capture to-dos with add_task (matter, title, optional assignee and target date); answer " +
+            "'what's open' with list_tasks and close them with complete_task. Hard court dates stay on the " +
+            "calendar, not the task list. " +
             "BEFORE opening a matter for a new client or adverse party, run check_conflicts with every " +
             "involved name; after the user decides, freeze the result with attest_conflict_check on the matter " +
             "(record parties with add_matter_party as they become known). " +
@@ -202,6 +205,26 @@ public sealed class LegalModule : IModule
                 Name = "export_prebill",
                 Description = "Generate a pre-bill (time entries + billable totals over a period) as a PDF filed on the matter. Side-effecting: writes a document and requires human approval.",
                 Permission = Permissions.ForTool(Id, "export_prebill"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "add_task",
+                Description = "Add a task (to-do) on a matter, optionally assigned by name with a target date. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "add_task"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "list_tasks",
+                Description = "List open tasks across all matters or for one matter (dated tasks first).",
+                Permission = Permissions.ForTool(Id, "list_tasks"),
+            },
+            new ToolDescriptor
+            {
+                Name = "complete_task",
+                Description = "Mark a matter task as completed. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "complete_task"),
                 RequiresApproval = true,
             },
             new ToolDescriptor
@@ -413,6 +436,7 @@ public sealed class LegalModule : IModule
         services.AddScoped<ConflictTools>();
         services.AddScoped<CalendarTools>();
         services.AddScoped<TimeTools>();
+        services.AddScoped<TaskTools>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 

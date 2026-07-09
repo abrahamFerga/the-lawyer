@@ -22,6 +22,7 @@ public sealed class LegalDbContext(
     public DbSet<MatterEvent> MatterEvents => Set<MatterEvent>();
     public DbSet<ConflictAttestation> ConflictAttestations => Set<ConflictAttestation>();
     public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
+    public DbSet<MatterTask> MatterTasks => Set<MatterTask>();
     public DbSet<TenantClause> Clauses => Set<TenantClause>();
     public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
     public DbSet<PlaybookRule> PlaybookRules => Set<PlaybookRule>();
@@ -66,6 +67,19 @@ public sealed class LegalDbContext(
             b.Property(x => x.Hours).HasPrecision(5, 2);
             b.HasIndex(x => x.MatterId);
             b.HasIndex(x => new { x.TenantId, x.WorkedOn });
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<MatterTask>(b =>
+        {
+            b.ToTable("matter_tasks");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            b.Property(x => x.AssignedTo).HasMaxLength(200);
+            b.Property(x => x.Notes).HasMaxLength(1000);
+            b.HasIndex(x => x.MatterId);
+            b.HasIndex(x => new { x.TenantId, x.CompletedAt });
             b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });

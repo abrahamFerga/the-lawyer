@@ -17,6 +17,7 @@ public sealed class LegalToolSource : IModuleToolSource
         var conflicts = scopedServices.GetRequiredService<ConflictTools>();
         var calendar = scopedServices.GetRequiredService<CalendarTools>();
         var time = scopedServices.GetRequiredService<TimeTools>();
+        var tasks = scopedServices.GetRequiredService<TaskTools>();
 
         return
         [
@@ -40,6 +41,29 @@ public sealed class LegalToolSource : IModuleToolSource
                 Name = "export_prebill",
                 Permission = Permissions.ForTool(ModuleId, "export_prebill"),
                 Function = AIFunctionFactory.Create(time.ExportPrebill, name: "export_prebill"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "add_task",
+                Permission = Permissions.ForTool(ModuleId, "add_task"),
+                Function = AIFunctionFactory.Create(tasks.AddTask, name: "add_task"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_tasks",
+                Permission = Permissions.ForTool(ModuleId, "list_tasks"),
+                Function = AIFunctionFactory.Create(tasks.ListTasks, name: "list_tasks"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "complete_task",
+                Permission = Permissions.ForTool(ModuleId, "complete_task"),
+                Function = AIFunctionFactory.Create(tasks.CompleteTask, name: "complete_task"),
                 RequiresApproval = true,
             },
             new ModuleTool
