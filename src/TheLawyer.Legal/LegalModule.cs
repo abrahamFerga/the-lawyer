@@ -46,7 +46,9 @@ public sealed class LegalModule : IModule
             "state document contents without a citation. " +
             "Track deadlines with the calendar tools: add_matter_event for court deadlines, hearings, and " +
             "reminders the user mentions; list_upcoming_events is the firm agenda — check it when the user asks " +
-            "what needs attention, and flag OVERDUE items proactively. " +
+            "what needs attention, and flag OVERDUE items proactively; when an obligation is satisfied, " +
+            "complete_event so it stops reminding. CLOSE-OUT: closing a matter checks completeness - open " +
+            "events/tasks block it; only force after the user explicitly confirms. " +
             "TIME CAPTURE: the moment the user mentions work done ('log half an hour', 'call with opposing " +
             "counsel took 20 minutes'), record it with log_time (matter, hours, narrative description) — no " +
             "approval needed, it is the one quick-capture write; answer 'what did I work on' with list_time. " +
@@ -112,7 +114,7 @@ public sealed class LegalModule : IModule
                     "flag urgency honestly. Nothing else is yours: no drafting, no conflicts, no billing.",
                 ToolNames =
                 [
-                    "add_matter_event", "list_matter_events", "list_upcoming_events", "list_matters",
+                    "add_matter_event", "list_matter_events", "list_upcoming_events", "complete_event", "list_matters",
                 ],
             },
         ],
@@ -171,7 +173,7 @@ public sealed class LegalModule : IModule
             new ToolDescriptor
             {
                 Name = "set_matter_status",
-                Description = "Change a matter's status (open / on-hold / closed). Side-effecting: writes data and requires human approval.",
+                Description = "Change a matter's status (open / on-hold / closed). Closing runs a completeness check: open events/tasks block it unless forced after user confirmation. Side-effecting: writes data and requires human approval.",
                 Permission = Permissions.ForTool(Id, "set_matter_status"),
                 RequiresApproval = true,
             },
@@ -277,6 +279,13 @@ public sealed class LegalModule : IModule
                 Name = "list_upcoming_events",
                 Description = "The firm agenda: upcoming events across accessible matters, overdue first-class.",
                 Permission = Permissions.ForTool(Id, "list_upcoming_events"),
+            },
+            new ToolDescriptor
+            {
+                Name = "complete_event",
+                Description = "Mark a matter's calendar event as completed: it leaves the agenda, stops reminding, and stops blocking close-out. Side-effecting: writes data and requires human approval.",
+                Permission = Permissions.ForTool(Id, "complete_event"),
+                RequiresApproval = true,
             },
             new ToolDescriptor
             {

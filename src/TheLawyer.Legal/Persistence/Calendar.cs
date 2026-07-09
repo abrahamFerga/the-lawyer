@@ -22,6 +22,10 @@ public sealed class MatterEvent : TenantEntityBase
 
     public string? Notes { get; set; }
 
+    /// <summary>Set when the obligation is satisfied — completed events leave the agenda and
+    /// stop counting against matter close-out.</summary>
+    public DateTimeOffset? CompletedAt { get; set; }
+
     /// <summary>How the event reads on an agenda relative to <paramref name="now"/>.</summary>
     public static EventUrgency UrgencyAt(DateTimeOffset now, DateTimeOffset startsAt, int dueSoonDays = 3) =>
         startsAt < now ? EventUrgency.Overdue

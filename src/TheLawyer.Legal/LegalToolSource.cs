@@ -46,6 +46,14 @@ public sealed class LegalToolSource : IModuleToolSource
             new ModuleTool
             {
                 ModuleId = ModuleId,
+                Name = "complete_event",
+                Permission = Permissions.ForTool(ModuleId, "complete_event"),
+                Function = AIFunctionFactory.Create(calendar.CompleteEvent, name: "complete_event"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
                 Name = "add_task",
                 Permission = Permissions.ForTool(ModuleId, "add_task"),
                 Function = AIFunctionFactory.Create(tasks.AddTask, name: "add_task"),

@@ -179,6 +179,7 @@ public sealed class MatterTools(
     public async Task<string> SetMatterStatus(
         [Description("The matter name.")] string matterName,
         [Description("The new status: open, on-hold, or closed.")] string status,
+        [Description("Close even with open events/tasks (only after the user explicitly confirms).")] bool force = false,
         CancellationToken cancellationToken = default)
     {
         var matter = await FindMatterAsync(matterName, cancellationToken);
@@ -197,6 +198,21 @@ public sealed class MatterTools(
         if (next is null)
         {
             return $"'{status}' is not a matter status. Use 'open', 'on-hold', or 'closed'.";
+        }
+
+        if (next == MatterStatus.Closed && !force)
+        {
+            // Close-out completeness: a matter with unmet obligations doesn't close silently.
+            var openEvents = await db.MatterEvents
+                .CountAsync(e => e.MatterId == matter.Id && e.CompletedAt == null, cancellationToken);
+            var openTasks = await db.MatterTasks
+                .CountAsync(t => t.MatterId == matter.Id && t.CompletedAt == null, cancellationToken);
+            if (openEvents > 0 || openTasks > 0)
+            {
+                return $"Matter '{matter.Name}' still has {openEvents} open event(s) and {openTasks} open task(s). " +
+                       "Complete them (complete_event / complete_task), or - only after the user explicitly " +
+                       "confirms - close anyway with force.";
+            }
         }
 
         var message = matter.ApplyStatus(next.Value, DateTimeOffset.UtcNow);

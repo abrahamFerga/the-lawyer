@@ -93,13 +93,14 @@ public sealed class CalendarTools(
 
         // Wall filtering happens against the matter list in memory, same as everywhere else.
         var matters = (await db.Matters
+                .Where(m => m.Status != MatterStatus.Closed) // closed matters stop reminding
                 .Select(m => new { m.Id, m.Name, m.RestrictedUserIdsJson })
                 .ToListAsync(cancellationToken))
             .Where(m => Matter.WallAllows(m.RestrictedUserIdsJson, currentUser.UserId))
             .ToDictionary(m => m.Id, m => m.Name);
 
         var events = (await db.MatterEvents
-                .Where(e => e.StartsAt <= horizon)
+                .Where(e => e.CompletedAt == null && e.StartsAt <= horizon)
                 .OrderBy(e => e.StartsAt)
                 .Take(300)
                 .ToListAsync(cancellationToken))
@@ -121,7 +122,7 @@ public sealed class CalendarTools(
         var now = DateTimeOffset.UtcNow;
         foreach (var (e, matterName) in rows)
         {
-            var marker = MatterEvent.UrgencyAt(now, e.StartsAt) switch
+            var marker = e.CompletedAt is not null ? " ✓ done" : MatterEvent.UrgencyAt(now, e.StartsAt) switch
             {
                 EventUrgency.Overdue => " ⚠ OVERDUE",
                 EventUrgency.DueSoon => " ⏰ DUE SOON",
@@ -131,6 +132,32 @@ public sealed class CalendarTools(
                 $"- {e.StartsAt:yyyy-MM-dd HH:mm}Z [{e.Type}] {e.Title} — {matterName}{marker}" +
                 $"{(e.Notes is null ? "" : $" ({e.Notes})")}");
         }
+    }
+
+    [Description("Mark a matter's calendar event as completed (the obligation is satisfied): it leaves the agenda, stops reminding, and stops blocking matter close-out. Side-effecting and requires approval.")]
+    public async Task<string> CompleteEvent(
+        [Description("The matter name the event is on.")] string matterName,
+        [Description("The event title (as shown by list_matter_events).")] string title,
+        CancellationToken cancellationToken = default)
+    {
+        var matter = await FindAccessibleMatterAsync(matterName, cancellationToken);
+        if (matter is null)
+        {
+            return $"No matter named '{matterName}' exists. Use list_matters to find the right name.";
+        }
+
+        var normalized = title.Trim();
+        var evt = await db.MatterEvents.FirstOrDefaultAsync(
+            e => e.MatterId == matter.Id && e.CompletedAt == null && EF.Functions.ILike(e.Title, normalized),
+            cancellationToken);
+        if (evt is null)
+        {
+            return $"No open event titled '{normalized}' on matter '{matter.Name}'. Check list_matter_events for the exact title.";
+        }
+
+        evt.CompletedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return $"Marked event '{evt.Title}' ({evt.StartsAt:yyyy-MM-dd}) on matter '{matter.Name}' as completed.";
     }
 
     private async Task<Matter?> FindAccessibleMatterAsync(string name, CancellationToken cancellationToken)
