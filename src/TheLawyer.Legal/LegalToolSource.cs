@@ -16,9 +16,32 @@ public sealed class LegalToolSource : IModuleToolSource
         var matters = scopedServices.GetRequiredService<MatterTools>();
         var conflicts = scopedServices.GetRequiredService<ConflictTools>();
         var calendar = scopedServices.GetRequiredService<CalendarTools>();
+        var time = scopedServices.GetRequiredService<TimeTools>();
 
         return
         [
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "log_time",
+                Permission = Permissions.ForTool(ModuleId, "log_time"),
+                Function = AIFunctionFactory.Create(time.LogTime, name: "log_time"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "list_time",
+                Permission = Permissions.ForTool(ModuleId, "list_time"),
+                Function = AIFunctionFactory.Create(time.ListTime, name: "list_time"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "export_prebill",
+                Permission = Permissions.ForTool(ModuleId, "export_prebill"),
+                Function = AIFunctionFactory.Create(time.ExportPrebill, name: "export_prebill"),
+                RequiresApproval = true,
+            },
             new ModuleTool
             {
                 ModuleId = ModuleId,

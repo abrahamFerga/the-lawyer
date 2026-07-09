@@ -47,6 +47,11 @@ public sealed class LegalModule : IModule
             "Track deadlines with the calendar tools: add_matter_event for court deadlines, hearings, and " +
             "reminders the user mentions; list_upcoming_events is the firm agenda — check it when the user asks " +
             "what needs attention, and flag OVERDUE items proactively. " +
+            "TIME CAPTURE: the moment the user mentions work done ('log half an hour', 'call with opposing " +
+            "counsel took 20 minutes'), record it with log_time (matter, hours, narrative description) — no " +
+            "approval needed, it is the one quick-capture write; answer 'what did I work on' with list_time. " +
+            "BILLING: when asked to prepare a bill or pre-bill, use export_prebill (matter, optional date " +
+            "range) — it files the PDF on the matter for billing review. " +
             "BEFORE opening a matter for a new client or adverse party, run check_conflicts with every " +
             "involved name; after the user decides, freeze the result with attest_conflict_check on the matter " +
             "(record parties with add_matter_party as they become known). " +
@@ -178,6 +183,25 @@ public sealed class LegalModule : IModule
                 Name = "add_matter_party",
                 Description = "Record a party (client / opposing / related) on a matter — the surface conflict checks search. Side-effecting: writes data and requires human approval.",
                 Permission = Permissions.ForTool(Id, "add_matter_party"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
+                Name = "log_time",
+                Description = "Log time worked on a matter (billable by default). Quick capture — appends an entry without an approval step.",
+                Permission = Permissions.ForTool(Id, "log_time"),
+            },
+            new ToolDescriptor
+            {
+                Name = "list_time",
+                Description = "List logged time: a matter's entries with billable totals, or the caller's own recent time across matters.",
+                Permission = Permissions.ForTool(Id, "list_time"),
+            },
+            new ToolDescriptor
+            {
+                Name = "export_prebill",
+                Description = "Generate a pre-bill (time entries + billable totals over a period) as a PDF filed on the matter. Side-effecting: writes a document and requires human approval.",
+                Permission = Permissions.ForTool(Id, "export_prebill"),
                 RequiresApproval = true,
             },
             new ToolDescriptor
@@ -388,6 +412,7 @@ public sealed class LegalModule : IModule
         services.AddScoped<MatterTools>();
         services.AddScoped<ConflictTools>();
         services.AddScoped<CalendarTools>();
+        services.AddScoped<TimeTools>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 

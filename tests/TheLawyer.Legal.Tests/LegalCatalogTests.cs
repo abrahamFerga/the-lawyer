@@ -61,7 +61,7 @@ public sealed class LegalCatalogTests
 
         Assert.Equal("legal", manifest.Id);
         Assert.Equal(
-            ["search_clauses", "draft_clause", "save_document_template", "list_document_templates", "draft_from_template", "create_matter", "set_matter_status", "list_matters", "add_matter_party", "check_conflicts", "attest_conflict_check", "list_conflict_attestations", "attach_document_to_matter", "list_matter_documents", "add_matter_event", "list_matter_events", "list_upcoming_events", "get_playbook", "save_clause", "remove_clause", "add_playbook_rule", "remove_playbook_rule", "start_bulk_review", "index_matter_documents", "restrict_matter_access", "open_matter_access", "connect_matter_folder", "sync_matter_folder"],
+            ["search_clauses", "draft_clause", "save_document_template", "list_document_templates", "draft_from_template", "create_matter", "set_matter_status", "list_matters", "add_matter_party", "log_time", "list_time", "export_prebill", "check_conflicts", "attest_conflict_check", "list_conflict_attestations", "attach_document_to_matter", "list_matter_documents", "add_matter_event", "list_matter_events", "list_upcoming_events", "get_playbook", "save_clause", "remove_clause", "add_playbook_rule", "remove_playbook_rule", "start_bulk_review", "index_matter_documents", "restrict_matter_access", "open_matter_access", "connect_matter_folder", "sync_matter_folder"],
             manifest.Tools.Select(t => t.Name));
 
         // The side-effecting matter tools are held for human approval; the read tools are not.
@@ -70,10 +70,12 @@ public sealed class LegalCatalogTests
                 or "attest_conflict_check" or "attach_document_to_matter" or "start_bulk_review"
                 or "index_matter_documents" or "restrict_matter_access" or "open_matter_access"
                 or "connect_matter_folder" or "sync_matter_folder"
-                or "save_clause" or "remove_clause" or "add_playbook_rule" or "remove_playbook_rule"),
+                or "save_clause" or "remove_clause" or "add_playbook_rule" or "remove_playbook_rule"
+                or "export_prebill"),
             t => Assert.True(t.RequiresApproval));
+        // log_time is the module's ONE deliberately non-gated write (quick capture); reads are never gated.
         Assert.All(
-            manifest.Tools.Where(t => t.Name is "list_matters" or "list_matter_documents"),
+            manifest.Tools.Where(t => t.Name is "list_matters" or "list_matter_documents" or "log_time" or "list_time"),
             t => Assert.False(t.RequiresApproval));
 
         Assert.Contains(manifest.Tabs, t => t.Id == "chat");

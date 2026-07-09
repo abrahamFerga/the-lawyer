@@ -21,6 +21,7 @@ public sealed class LegalDbContext(
     public DbSet<MatterParty> MatterParties => Set<MatterParty>();
     public DbSet<MatterEvent> MatterEvents => Set<MatterEvent>();
     public DbSet<ConflictAttestation> ConflictAttestations => Set<ConflictAttestation>();
+    public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
     public DbSet<TenantClause> Clauses => Set<TenantClause>();
     public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
     public DbSet<PlaybookRule> PlaybookRules => Set<PlaybookRule>();
@@ -53,6 +54,19 @@ public sealed class LegalDbContext(
             b.Property(x => x.Note).HasMaxLength(500);
             b.HasIndex(x => x.MatterId);
             b.HasIndex(x => new { x.MatterId, x.FileId }).IsUnique(); // a file attaches to a matter once
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<TimeEntry>(b =>
+        {
+            b.ToTable("time_entries");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            b.Property(x => x.UserDisplay).HasMaxLength(200);
+            b.Property(x => x.Hours).HasPrecision(5, 2);
+            b.HasIndex(x => x.MatterId);
+            b.HasIndex(x => new { x.TenantId, x.WorkedOn });
+            b.HasOne<Matter>().WithMany().HasForeignKey(x => x.MatterId).OnDelete(DeleteBehavior.Cascade);
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });
 
