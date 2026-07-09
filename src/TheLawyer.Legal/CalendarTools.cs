@@ -49,6 +49,7 @@ public sealed class CalendarTools(
             MatterId = matter.Id,
             Title = title.Trim(),
             Type = MatterEvent.NormalizeType(type),
+            CreatedByUserId = currentUser.UserId,
             StartsAt = startsAt,
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
         };

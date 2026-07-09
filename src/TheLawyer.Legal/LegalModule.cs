@@ -463,6 +463,7 @@ public sealed class LegalModule : IModule
         services.AddScoped<TimeTools>();
         services.AddScoped<TaskTools>();
         services.AddScoped<BriefingTools>();
+        services.AddHostedService<DeadlineReminderService>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 
