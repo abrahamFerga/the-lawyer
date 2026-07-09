@@ -18,6 +18,7 @@ public sealed class LegalToolSource : IModuleToolSource
         var calendar = scopedServices.GetRequiredService<CalendarTools>();
         var time = scopedServices.GetRequiredService<TimeTools>();
         var tasks = scopedServices.GetRequiredService<TaskTools>();
+        var briefing = scopedServices.GetRequiredService<BriefingTools>();
 
         return
         [
@@ -72,6 +73,21 @@ public sealed class LegalToolSource : IModuleToolSource
                 Name = "complete_task",
                 Permission = Permissions.ForTool(ModuleId, "complete_task"),
                 Function = AIFunctionFactory.Create(tasks.CompleteTask, name: "complete_task"),
+                RequiresApproval = true,
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "get_matter_overview",
+                Permission = Permissions.ForTool(ModuleId, "get_matter_overview"),
+                Function = AIFunctionFactory.Create(briefing.GetMatterOverview, name: "get_matter_overview"),
+            },
+            new ModuleTool
+            {
+                ModuleId = ModuleId,
+                Name = "draft_status_update",
+                Permission = Permissions.ForTool(ModuleId, "draft_status_update"),
+                Function = AIFunctionFactory.Create(briefing.DraftStatusUpdate, name: "draft_status_update"),
                 RequiresApproval = true,
             },
             new ModuleTool

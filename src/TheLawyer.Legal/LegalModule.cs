@@ -49,6 +49,9 @@ public sealed class LegalModule : IModule
             "what needs attention, and flag OVERDUE items proactively; when an obligation is satisfied, " +
             "complete_event so it stops reminding. CLOSE-OUT: closing a matter checks completeness - open " +
             "events/tasks block it; only force after the user explicitly confirms. " +
+            "BRIEFING: answer 'brief me on X' with get_matter_overview - one look, everything open. When the " +
+            "client should hear where things stand, draft_status_update files a client-safe letter (progress, " +
+            "dates, hours - nothing internal) as a DRAFT for attorney review. " +
             "TIME CAPTURE: the moment the user mentions work done ('log half an hour', 'call with opposing " +
             "counsel took 20 minutes'), record it with log_time (matter, hours, narrative description) — no " +
             "approval needed, it is the one quick-capture write; answer 'what did I work on' with list_time. " +
@@ -289,6 +292,19 @@ public sealed class LegalModule : IModule
             },
             new ToolDescriptor
             {
+                Name = "get_matter_overview",
+                Description = "One-look matter brief: status, parties, open events, open tasks, time totals, recent documents.",
+                Permission = Permissions.ForTool(Id, "get_matter_overview"),
+            },
+            new ToolDescriptor
+            {
+                Name = "draft_status_update",
+                Description = "Draft a client-facing status letter (progress, upcoming dates, hours - nothing internal) filed on the matter as a PDF draft for attorney review. Side-effecting: writes a document and requires human approval.",
+                Permission = Permissions.ForTool(Id, "draft_status_update"),
+                RequiresApproval = true,
+            },
+            new ToolDescriptor
+            {
                 Name = "get_playbook",
                 Description = "Get the firm's contract-review playbook rules with severity.",
                 Permission = Permissions.ForTool(Id, "get_playbook"),
@@ -446,6 +462,7 @@ public sealed class LegalModule : IModule
         services.AddScoped<CalendarTools>();
         services.AddScoped<TimeTools>();
         services.AddScoped<TaskTools>();
+        services.AddScoped<BriefingTools>();
         services.AddSingleton<IModuleToolSource, LegalToolSource>();
         services.AddSingleton<Cortex.Application.Jobs.IJobHandler, BulkReviewJobHandler>();
 
