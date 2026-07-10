@@ -228,11 +228,11 @@ internal static class ManualCrudEndpoints
                 }
 
                 DateTimeOffset? startsAt = null;
-                if (!string.IsNullOrWhiteSpace(body.When))
+                if (!string.IsNullOrWhiteSpace(body.StartsAt))
                 {
-                    if (!DateTimeOffset.TryParse(body.When, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+                    if (!DateTimeOffset.TryParse(body.StartsAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
                     {
-                        return Results.BadRequest(new { error = $"'{body.When}' is not a date I can parse — use an ISO date like 2026-08-14 or 2026-08-14 09:00." });
+                        return Results.BadRequest(new { error = $"'{body.StartsAt}' is not a date I can parse — use an ISO date like 2026-08-14 or 2026-08-14 09:00." });
                     }
 
                     startsAt = parsed;
@@ -617,8 +617,9 @@ internal static class ManualCrudEndpoints
     /// <summary>Create or update a matter (matched by name; creation assigns the docket number).</summary>
     internal sealed record MatterUpsert(string? Name, string? ClientName, string? ClientEmail, string? PracticeArea, string? Status);
 
-    /// <summary>Add (no id) or edit (id from the row) a calendar event.</summary>
-    internal sealed record EventUpsert(Guid? Id, string? MatterName, string? Title, string? Type, string? When, string? Notes);
+    /// <summary>Add (no id) or edit (id from the row) a calendar event. Property names bind the
+    /// camelCase field names the tab editor and wizard post — <c>startsAt</c> matches the row.</summary>
+    internal sealed record EventUpsert(Guid? Id, string? MatterName, string? Title, string? Type, string? StartsAt, string? Notes);
 
     /// <summary>Add (no id) or edit (id from the row) a matter task.</summary>
     internal sealed record TaskUpsert(Guid? Id, string? MatterName, string? Title, string? AssignedTo, string? DueOn, string? Status, string? Notes);
