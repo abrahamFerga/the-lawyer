@@ -205,6 +205,10 @@ public static class TimeCapture
     /// <summary>An entry is positive and at most a day — beyond that it's a typo, not a workday.</summary>
     public static bool HoursAreValid(double hours) => hours is > 0 and <= 24;
 
+    /// <summary>The Monday starting <paramref name="day"/>'s week — the x bucket of the Hours chart.</summary>
+    public static DateOnly WeekOf(DateOnly day) =>
+        day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
+
     /// <summary>"inception – 2026-07-31" or "2026-07-01 – 2026-07-31".</summary>
     public static string PeriodLabel(DateOnly from, DateOnly to) =>
         $"{(from == DateOnly.MinValue ? "inception" : from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))} – {to:yyyy-MM-dd}";

@@ -151,26 +151,7 @@ public sealed class MatterTools(
             PracticeArea = area,
         };
         db.Matters.Add(matter);
-
-        // Number from the tenant's existing numbers; the unique index turns the rare concurrent
-        // clash into one retry with a fresh sequence rather than a duplicate docket number.
-        var year = DateTimeOffset.UtcNow.Year;
-        for (var attempt = 0; ; attempt++)
-        {
-            var existingNumbers = await db.Matters
-                .Where(m => m.MatterNumber != null && m.Id != matter.Id)
-                .Select(m => m.MatterNumber)
-                .ToListAsync(cancellationToken);
-            matter.MatterNumber = MatterNumbering.Format(year, MatterNumbering.NextSequence(existingNumbers, year));
-            try
-            {
-                await db.SaveChangesAsync(cancellationToken);
-                break;
-            }
-            catch (DbUpdateException) when (attempt == 0)
-            {
-            }
-        }
+        await MatterNumbering.NumberAndSaveAsync(db, matter, cancellationToken);
 
         return $"Created matter {matter.MatterNumber} '{matter.Name}'" +
                $"{(matter.ClientName is null ? "" : $" for client {matter.ClientName}")}" +

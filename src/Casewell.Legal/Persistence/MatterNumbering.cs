@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cortex.Modules.Legal.Persistence;
 
@@ -30,5 +31,31 @@ public static class MatterNumbering
         }
 
         return max + 1;
+    }
+
+    /// <summary>
+    /// Numbers a just-added matter and saves: the shared creation tail for every path that opens
+    /// a matter (chat tool, tab editor, setup wizard). The unique index on (TenantId, MatterNumber)
+    /// turns the rare concurrent clash into one retry with a fresh sequence rather than a duplicate.
+    /// </summary>
+    public static async Task NumberAndSaveAsync(LegalDbContext db, Matter matter, CancellationToken cancellationToken)
+    {
+        var year = DateTimeOffset.UtcNow.Year;
+        for (var attempt = 0; ; attempt++)
+        {
+            var existingNumbers = await db.Matters
+                .Where(m => m.MatterNumber != null && m.Id != matter.Id)
+                .Select(m => m.MatterNumber)
+                .ToListAsync(cancellationToken);
+            matter.MatterNumber = Format(year, NextSequence(existingNumbers, year));
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateException) when (attempt == 0)
+            {
+            }
+        }
     }
 }
