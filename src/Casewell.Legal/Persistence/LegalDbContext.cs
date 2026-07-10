@@ -20,6 +20,7 @@ public sealed class LegalDbContext(
     public const string Schema = "legal";
 
     public DbSet<Matter> Matters => Set<Matter>();
+    public DbSet<Client> Clients => Set<Client>();
     public DbSet<MatterDocument> MatterDocuments => Set<MatterDocument>();
     public DbSet<MatterParty> MatterParties => Set<MatterParty>();
     public DbSet<MatterEvent> MatterEvents => Set<MatterEvent>();
@@ -48,6 +49,19 @@ public sealed class LegalDbContext(
             // Docket numbers are unique per tenant; pre-numbering rows stay null (nulls don't collide).
             b.HasIndex(x => new { x.TenantId, x.MatterNumber }).IsUnique();
             b.HasMany(x => x.Documents).WithOne().HasForeignKey(d => d.MatterId).OnDelete(DeleteBehavior.Cascade);
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+        });
+
+        modelBuilder.Entity<Client>(b =>
+        {
+            b.ToTable("clients");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Email).HasMaxLength(320);
+            b.Property(x => x.Phone).HasMaxLength(50);
+            b.Property(x => x.Organization).HasMaxLength(200);
+            b.Property(x => x.Notes).HasMaxLength(1000);
+            b.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
         });
 

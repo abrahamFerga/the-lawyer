@@ -48,8 +48,21 @@ builder.Services.AddCortexProduct(new ProductOffering
     ],
 });
 
+// The firm's operating role (SPEC.md's RBAC model, the Networthy household-admin analog):
+// every legal tool plus the hand-edit surface — tab editors and the setup wizard run behind
+// legal.manage with no AI approval gate, because a person on a form is acting directly.
+// Seeded into every tenant's editable baseline; firm admins refine it per tenant afterwards.
+builder.Services.AddCortexRole("firm-admin",
+[
+    "chat.use", "chat.conversations.view", "files.upload", "files.read",
+    "tools.documents.read_document", "tools.documents.list_documents",
+    "tools.legal.*",
+    LegalModule.ViewMatters, LegalModule.ViewClauses, LegalModule.ManageLibrary, LegalModule.Manage,
+]);
+
 // A law-office role between guest and user: paralegals work matters, the docket, and the
-// library — but never attest conflicts, restrict access, or run billing. Seeded into every
+// library — but never attest conflicts, restrict access, or run billing (and deliberately
+// not legal.manage: hand-editing the record is the firm admin's surface). Seeded into every
 // tenant's editable baseline; firm admins refine it per tenant afterwards.
 builder.Services.AddCortexRole("paralegal",
 [

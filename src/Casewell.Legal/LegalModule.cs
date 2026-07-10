@@ -27,11 +27,18 @@ public sealed class LegalModule : IModule
     /// <summary>Curate the firm's clause library and playbook (add/remove entries).</summary>
     public const string ManageLibrary = "legal.library.manage";
 
+    /// <summary>
+    /// Hand-edit the practice's working records (matters, clients, deadlines, tasks, time) from
+    /// the tab editors and the setup wizard. A person acting on a form needs no approval gate —
+    /// RBAC is the gate; granted to firm-admin, deliberately not to paralegal.
+    /// </summary>
+    public const string Manage = "legal.manage";
+
     public ModuleManifest Manifest { get; } = new()
     {
         Id = Id,
         DisplayName = "Legal",
-        Version = "1.8.0",
+        Version = "1.9.0",
         Description = "Matter-centric legal assistant. Organize case documents into matters, search a clause library, and draft clauses for review.",
         Icon = "scale",
         AgentInstructions =
@@ -135,6 +142,94 @@ public sealed class LegalModule : IModule
             },
         ],
         Roles = ["legal:user", "legal:admin"],
+        // The first five minutes: the shell offers this wizard while the matters list probes
+        // empty, to anyone holding legal.manage. Every form step posts to the same manual-CRUD
+        // endpoints the tab editors use — same RBAC, same invariants, no separate write path.
+        Onboarding = new OnboardingDescriptor
+        {
+            ProbeEndpoint = "/api/legal/matters",
+            Permission = Manage,
+            Title = "Set up your practice",
+            Steps =
+            [
+                new OnboardingStep
+                {
+                    Id = "welcome",
+                    Kind = "info",
+                    Title = "Welcome to Casewell",
+                    Blurb = "Casewell organizes the practice around matters: documents, deadlines, tasks, and time " +
+                            "all attach to an engagement, and the assistant works inside it. A few guided minutes " +
+                            "now — your first client, matter, and key dates — and every tab has something real on it.",
+                },
+                new OnboardingStep
+                {
+                    Id = "firm-basics",
+                    Kind = "info",
+                    Title = "Your firm's foundations",
+                    Blurb = "Already set up for you: a clause library and a contract-review playbook (curate both " +
+                            "from their tabs or in chat), and docket numbers assigned automatically as YYYY-NNNN. " +
+                            "Invite the team and refine roles under Admin — paralegals get a working baseline out " +
+                            "of the box.",
+                },
+                new OnboardingStep
+                {
+                    Id = "first-client",
+                    Kind = "form",
+                    Title = "Add your first client",
+                    Blurb = "Who does the firm work for? Clients live in the contact book: matters reference them " +
+                            "by name and conflict checks search them.",
+                    Endpoint = "/api/legal/clients",
+                    Fields =
+                    [
+                        new("name", "Client name"),
+                        new("organization", "Organization (optional)", Required: false),
+                        new("email", "Email (optional)", Required: false),
+                        new("phone", "Phone (optional)", Required: false),
+                    ],
+                },
+                new OnboardingStep
+                {
+                    Id = "first-matter",
+                    Kind = "form",
+                    Title = "Open your first matter",
+                    Blurb = "The engagement workspace everything attaches to. It gets the next docket number " +
+                            "automatically; name the client you just added so the matter files under them.",
+                    Endpoint = "/api/legal/matters",
+                    Fields =
+                    [
+                        new("name", "Matter name (e.g. 'Acme / Initech NDA')"),
+                        new("clientName", "Client (optional)", Required: false),
+                        new("practiceArea", "Practice area (optional)", Required: false),
+                    ],
+                },
+                new OnboardingStep
+                {
+                    Id = "key-deadlines",
+                    Kind = "form",
+                    Title = "Docket the key deadlines",
+                    Blurb = "Deadlines are the malpractice surface — get the dates you already know onto the " +
+                            "calendar. Docketed dates remind ahead of time and when overdue, and open deadlines " +
+                            "block matter close-out.",
+                    Endpoint = "/api/legal/events",
+                    Preset = new Dictionary<string, string> { ["type"] = "deadline" },
+                    Fields =
+                    [
+                        new("matterName", "Matter"),
+                        new("title", "Deadline (e.g. 'Answer due')"),
+                        new("startsAt", "When (e.g. 2026-08-14)"),
+                    ],
+                },
+                new OnboardingStep
+                {
+                    Id = "done",
+                    Kind = "info",
+                    Title = "What to try first",
+                    Blurb = "Ask the assistant to 'brief me on' your new matter, attach a contract and have it " +
+                            "reviewed against the playbook, or say 'log half an hour — call with the client' and " +
+                            "watch the Time tab. Everything the assistant writes asks for your approval first.",
+                },
+            ],
+        },
         Tools =
         [
             new ToolDescriptor
@@ -405,10 +500,55 @@ public sealed class LegalModule : IModule
                     new("practiceArea", "Practice area"), new("status", "Status"),
                     new("documentCount", "Documents"), new("createdAt", "Opened"),
                 ],
+                // Hand-editing an engagement is a human act, not an agent proposal: RBAC only, no
+                // approval gate. The endpoint still runs the close-out check (no force from a
+                // form) and only history-free matters delete — closing is the paper trail.
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/matters",
+                    DeleteEndpoint = "/api/legal/matters/{id}",
+                    Permission = Manage,
+                    KeyField = "name",
+                    Fields =
+                    [
+                        new("name", "Matter name"),
+                        new("clientName", "Client (optional)", Required: false),
+                        new("clientEmail", "Client email for status letters (optional)", Required: false),
+                        new("practiceArea", "Practice area (optional)", Required: false),
+                        new("status", "Status (open / on-hold / closed)", Required: false),
+                    ],
+                },
             },
             new TabDescriptor
             {
-                Id = "calendar", Label = "Calendar", Route = "/legal/calendar", Icon = "calendar", Order = 2,
+                Id = "clients", Label = "Clients", Route = "/legal/clients", Icon = "users", Order = 2,
+                Permission = ViewMatters,
+                DataEndpoint = "/api/legal/clients",
+                Placeholder = "No clients yet. Add the people and companies the firm works for - matters reference them by name, and conflict checks search this book.",
+                Columns =
+                [
+                    new("name", "Client"), new("organization", "Organization"), new("email", "Email"),
+                    new("phone", "Phone"), new("matters", "Matters"),
+                ],
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/clients",
+                    DeleteEndpoint = "/api/legal/clients/{id}",
+                    Permission = Manage,
+                    KeyField = "name",
+                    Fields =
+                    [
+                        new("name", "Client name"),
+                        new("organization", "Organization (optional)", Required: false),
+                        new("email", "Email (optional)", Required: false),
+                        new("phone", "Phone (optional)", Required: false),
+                        new("notes", "Notes (optional)", Multiline: true, Required: false),
+                    ],
+                },
+            },
+            new TabDescriptor
+            {
+                Id = "calendar", Label = "Calendar", Route = "/legal/calendar", Icon = "calendar", Order = 3,
                 Permission = ViewMatters,
                 DataEndpoint = "/api/legal/events",
                 Placeholder = "Nothing docketed yet. Deadlines are captured in Chat - try: 'The answer in Acme is due August 14'. Docketed dates remind ahead of time and when overdue.",
@@ -417,10 +557,95 @@ public sealed class LegalModule : IModule
                     new("startsAt", "When"), new("type", "Type"), new("title", "Event"),
                     new("matterName", "Matter"), new("urgency", "Urgency"),
                 ],
+                // The id is the row identity (blank on add, read-only on edit) - the Networthy
+                // categories pattern. Completing an event stays a chat act (complete_event).
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/events",
+                    DeleteEndpoint = "/api/legal/events/{id}",
+                    Permission = Manage,
+                    KeyField = "id",
+                    Fields =
+                    [
+                        new("id", "Id (leave blank when adding)", Required: false),
+                        new("matterName", "Matter"),
+                        new("title", "Event"),
+                        new("type", "Type (deadline / hearing / meeting / reminder)", Required: false),
+                        new("startsAt", "When (e.g. 2026-08-14 or 2026-08-14 09:00)", Required: false),
+                        new("notes", "Notes (optional)", Required: false),
+                    ],
+                },
             },
             new TabDescriptor
             {
-                Id = "clauses", Label = "Clauses", Route = "/legal/clauses", Icon = "file-text", Order = 3,
+                Id = "tasks", Label = "Tasks", Route = "/legal/tasks", Icon = "check-square", Order = 4,
+                Permission = ViewMatters,
+                DataEndpoint = "/api/legal/tasks",
+                Placeholder = "No open tasks. To-dos are captured in Chat ('add a task on Acme: draft the motion') or added here by hand.",
+                Columns =
+                [
+                    new("matterName", "Matter"), new("title", "Task"), new("assignedTo", "Assigned to"),
+                    new("dueOn", "Due"), new("status", "Status"),
+                ],
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/tasks",
+                    DeleteEndpoint = "/api/legal/tasks/{id}",
+                    Permission = Manage,
+                    KeyField = "id",
+                    Fields =
+                    [
+                        new("id", "Id (leave blank when adding)", Required: false),
+                        new("matterName", "Matter"),
+                        new("title", "Task"),
+                        new("assignedTo", "Assigned to (optional)", Required: false),
+                        new("dueOn", "Due (e.g. 2026-08-01, optional)", Required: false),
+                        new("status", "Status (open / done)", Required: false),
+                        new("notes", "Notes (optional)", Required: false),
+                    ],
+                },
+            },
+            new TabDescriptor
+            {
+                Id = "time", Label = "Time", Route = "/legal/time", Icon = "clock", Order = 5,
+                Permission = ViewMatters,
+                DataEndpoint = "/api/legal/time-entries",
+                Placeholder = "No time on the books. Capture it in Chat ('log half an hour on Acme - call with opposing counsel') or add entries here by hand.",
+                Columns =
+                [
+                    new("workedOn", "Day"), new("matterName", "Matter"), new("who", "Who"),
+                    new("hours", "Hours"), new("billable", "Billable"), new("description", "Narrative"),
+                ],
+                Editor = new TabEditor
+                {
+                    UpsertEndpoint = "/api/legal/time-entries",
+                    DeleteEndpoint = "/api/legal/time-entries/{id}",
+                    Permission = Manage,
+                    KeyField = "id",
+                    Fields =
+                    [
+                        new("id", "Id (leave blank when adding)", Required: false),
+                        new("matterName", "Matter"),
+                        new("hours", "Hours (e.g. 0.5)", Numeric: true),
+                        new("description", "Narrative (becomes the line on the bill)"),
+                        new("workedOn", "Day (e.g. 2026-07-10, optional = today)", Required: false),
+                        new("billable", "Billable (yes / no, default yes)", Required: false),
+                    ],
+                },
+            },
+            new TabDescriptor
+            {
+                Id = "hours", Label = "Hours", Route = "/legal/hours", Icon = "trending-up", Order = 6,
+                Permission = ViewMatters,
+                DataEndpoint = "/api/legal/time/weekly",
+                // The platform renders these rows as a time-series line chart of the firm's
+                // billable hours per week (Mondays on the x axis).
+                Chart = new TabChart { XField = "weekOf", YField = "hours", YLabel = "Billable hours" },
+                Placeholder = "The trend appears once time is on the books - log entries in Chat or on the Time tab.",
+            },
+            new TabDescriptor
+            {
+                Id = "clauses", Label = "Clauses", Route = "/legal/clauses", Icon = "file-text", Order = 7,
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/clauses",
                 Columns = [new("title", "Clause"), new("category", "Category"), new("summary", "Summary")],
@@ -444,7 +669,7 @@ public sealed class LegalModule : IModule
             },
             new TabDescriptor
             {
-                Id = "playbook", Label = "Playbook", Route = "/legal/playbook", Icon = "shield-check", Order = 4,
+                Id = "playbook", Label = "Playbook", Route = "/legal/playbook", Icon = "shield-check", Order = 8,
                 Permission = ViewClauses,
                 DataEndpoint = "/api/legal/playbook",
                 Columns = [new("severity", "Severity"), new("title", "Rule"), new("guidance", "Guidance")],
@@ -563,6 +788,10 @@ public sealed class LegalModule : IModule
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/legal").WithTags("Legal").RequireAuthorization();
+
+        // The hand-edit surface (tab editors + setup wizard): clients, matters, deadlines,
+        // tasks, time entries, and the weekly-hours chart rows. RBAC-gated, never approval-gated.
+        group.MapManualCrudEndpoints();
 
         // The tenant's clause library (seeded from defaults, curated by the firm).
         group.MapGet("/clauses", async (string? query, LegalDbContext db, CancellationToken cancellationToken) =>
