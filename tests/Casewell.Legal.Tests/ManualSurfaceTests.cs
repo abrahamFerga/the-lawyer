@@ -75,7 +75,11 @@ public sealed class ManualSurfaceTests
             .ToHashSet(StringComparer.Ordinal);
         Assert.All(
             onboarding.Steps.Where(s => s.Kind == "form"),
-            s => Assert.Contains(s.Endpoint, editorEndpoints));
+            s =>
+            {
+                Assert.NotNull(s.Endpoint);
+                Assert.Contains(s.Endpoint, editorEndpoints);
+            });
 
         // The deadlines step docket entries as deadlines without asking.
         var deadlines = onboarding.Steps.First(s => s.Id == "key-deadlines");
