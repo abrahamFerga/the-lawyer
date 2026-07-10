@@ -1,4 +1,5 @@
 using Cortex.Core.Multitenancy;
+using Cortex.Modules.Sdk;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cortex.Modules.Legal.Persistence;
@@ -7,10 +8,12 @@ namespace Cortex.Modules.Legal.Persistence;
 /// The Legal module's own database — co-located in the platform database under a dedicated
 /// <c>legal</c> schema and migrated via the module's <c>MigrateAsync</c> hook. The same global
 /// query-filter pattern the platform uses enforces tenant isolation on matters and their documents.
+/// <see cref="ModuleDbContext"/> stamps CreatedAt/UpdatedAt on every save — the platform's
+/// audit interceptor only rides the platform context, so a module context must bring its own.
 /// </summary>
 public sealed class LegalDbContext(
     DbContextOptions<LegalDbContext> options,
-    ITenantContext tenantContext) : DbContext(options)
+    ITenantContext tenantContext) : ModuleDbContext(options)
 {
     /// <summary>Connection shared with the platform database (separate schema).</summary>
     public const string ConnectionName = "cortex-platform";
